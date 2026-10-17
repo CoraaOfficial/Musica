@@ -64,6 +64,35 @@ svg{width:26px;height:26px;fill:currentColor}
 #dlg .box{background:var(--surface);border-radius:16px;padding:18px;width:100%;max-width:420px}
 #dlg .search{margin:0}
 #dlg .sub{margin:0 0 10px}
+li .song{touch-action:pan-y;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+#player .pin{display:flex;align-items:center;gap:10px}
+#player #nowt{flex:1;min-width:0;cursor:pointer}
+#player .bar,#player #art,#player #closeNp,#player .xtra,#player #qbox,#player #prev,#player #next{display:none}
+#player .ctl{margin:0;gap:12px}
+#player .ctl .play{width:42px;height:42px}
+#player .ctl .play svg{width:22px;height:22px}
+#player::after{content:"";position:absolute;left:0;top:0;height:2px;width:var(--p,0%);background:var(--accent)}
+#closeNp{align-self:flex-start;background:none;border:0;color:var(--text);padding:6px;cursor:pointer}
+#art{width:min(70vw,300px);aspect-ratio:1;margin:8px auto;border-radius:18px;background:linear-gradient(135deg,var(--accent),var(--surface));align-items:center;justify-content:center;color:var(--on-accent)}
+#art svg{width:40%;height:40%}
+#player.open{top:0;bottom:0;z-index:9;overflow-y:auto;padding:calc(12px + env(safe-area-inset-top,0px)) 20px calc(20px + env(safe-area-inset-bottom,0px));border-top:0;background:var(--bg)}
+#player.open::after{display:none}
+#player.open .pin{flex-direction:column;align-items:stretch;gap:14px}
+#player.open #nowt{flex:none;text-align:center;font-size:22px;white-space:normal;cursor:default}
+#player.open .bar{display:flex}
+#player.open #art{display:flex}
+#player.open #closeNp,#player.open #prev,#player.open #next,#player.open #qbox{display:block}
+#player.open .xtra{display:flex}
+#player.open .ctl{gap:28px;margin:4px 0}
+#player.open .ctl .play{width:68px;height:68px}
+.xtra .add{font-size:15px;padding:13px}
+.qh{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:14px;margin-top:14px;min-height:20px}
+.qe{color:var(--muted);font-size:14px;padding:8px 4px}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(150px + env(safe-area-inset-bottom,0px));background:var(--text);color:var(--bg);padding:10px 16px;border-radius:20px;font-size:14px;z-index:20}
+#sheet{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:15;display:flex;align-items:flex-end}
+#sheetBox{width:100%;max-width:640px;margin:0 auto;background:var(--surface);border-radius:18px 18px 0 0;padding:8px 8px calc(12px + env(safe-area-inset-bottom,0px));max-height:70vh;overflow:auto}
+#sheetBox button{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);color:var(--text);font:500 17px "Bricolage Grotesque",system-ui,sans-serif;padding:15px 12px;cursor:pointer}
+.sh{color:var(--muted);padding:10px 12px;font-size:14px}
 </style>
 </head>
 <body>
@@ -111,6 +140,8 @@ svg{width:26px;height:26px;fill:currentColor}
 
 <div id="player">
   <div class="pin">
+    <button id="closeNp" aria-label="Chiudi"><svg viewBox="0 0 24 24"><path d="M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z"/></svg></button>
+    <div id="art"><svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3z"/></svg></div>
     <div id="nowt"></div>
     <div class="bar"><span id="cur">0:00</span><input type="range" id="seek" min="0" max="1000" value="0" aria-label="Posizione"><span id="dur">0:00</span></div>
     <div class="ctl">
@@ -118,8 +149,17 @@ svg{width:26px;height:26px;fill:currentColor}
       <button id="pp" class="play" aria-label="Play o pausa"><svg id="ppi" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
       <button id="next" aria-label="Successiva"><svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg></button>
     </div>
+    <div class="xtra"><button class="add alt" id="airBtn">Trasferisci su un altro dispositivo</button></div>
+    <div id="qbox">
+      <div class="qh"><span>In coda</span><button class="del" id="qclear">Svuota</button></div>
+      <ul id="qlist"></ul>
+      <div class="qh"><span id="qctx"></span></div>
+      <ul id="qnext"></ul>
+    </div>
   </div>
 </div>
+<div id="toast" hidden></div>
+<div id="sheet" hidden><div id="sheetBox"></div></div>
 <div id="dlg" hidden>
   <div class="box">
     <p class="sub" id="dlgInfo"></p>
@@ -127,13 +167,13 @@ svg{width:26px;height:26px;fill:currentColor}
     <div class="row2"><button class="add alt" id="dlgSkip">Tieni il nome</button><button class="add" id="dlgOk">Salva</button></div>
   </div>
 </div>
-<audio id="a" preload="metadata"></audio>
+<audio id="a" preload="metadata" x-webkit-airplay="allow"></audio>
 
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
 let db = null, songs = [], shown = [], curId = null, url = null, nextId = 1, armed = null;
-let lists = [], queue = [], openId = null, picking = false, armedL = false;
+let lists = [], queue = [], openId = null, picking = false, armedL = false, upNext = [], ctxId = null;
 
 function openDb() {
   return new Promise((res, rej) => {
@@ -242,6 +282,7 @@ function render() {
     const m = document.createElement("div"); m.className = "m"; m.textContent = mb(s.size);
     box.append(t, m); b.append(dot, box);
     b.onclick = () => { unlock(); play(s.id, shown.map(x => x.id)); };
+    bindRow(b, s, shown.map(x => x.id));
     const d = document.createElement("button");
     d.className = "del"; d.textContent = "Elimina";
     d.onclick = () => {
@@ -253,19 +294,21 @@ function render() {
     ul.append(li);
   });
   renderLists();
+  renderQueue();
 }
 
 async function remove(id) {
   if (db) { try { store("readwrite").delete(id); dstore("readwrite").delete(id); } catch (e) {} }
-  if (id === curId) { audio.pause(); audio.removeAttribute("src"); curId = null; $("#player").classList.remove("show"); }
+  if (id === curId) { audio.pause(); audio.removeAttribute("src"); curId = null; $("#player").classList.remove("show", "open"); }
   songs = songs.filter(s => s.id !== id);
   queue = queue.filter(x => x !== id);
   lists.forEach(l => { if (l.songIds.includes(id)) { l.songIds = l.songIds.filter(x => x !== id); saveList(l); } });
   render();
 }
 
-async function play(id, q) {
+async function play(id, q, fromNext) {
   if (q) queue = q;
+  if (!fromNext) ctxId = id;
   const s = songs.find(x => x.id === id);
   if (!s) return;
   let blob = s.mem;
@@ -293,10 +336,15 @@ async function play(id, q) {
 }
 
 function step(d) {
-  if (!queue.length) return;
-  let i = queue.indexOf(curId);
-  i = (i + d + queue.length) % queue.length;
-  play(queue[i]);
+  if (d > 0) {
+    if (upNext.length) { play(upNext.shift(), null, true); return; }
+    if (!queue.length) return;
+    play(queue[(queue.indexOf(ctxId) + 1) % queue.length]);
+    return;
+  }
+  if (audio.currentTime > 3 || !queue.length) { audio.currentTime = 0; return; }
+  if (ctxId !== null && curId !== ctxId) { play(ctxId); return; }
+  play(queue[(queue.indexOf(ctxId) - 1 + queue.length) % queue.length]);
 }
 
 function unlock() {
@@ -320,7 +368,11 @@ $("#seek").oninput = e => { if (isFinite(audio.duration)) audio.currentTime = e.
 audio.ontimeupdate = () => {
   $("#cur").textContent = fmt(audio.currentTime);
   $("#dur").textContent = fmt(audio.duration);
-  if (isFinite(audio.duration) && audio.duration > 0) $("#seek").value = audio.currentTime / audio.duration * 1000;
+  if (isFinite(audio.duration) && audio.duration > 0) {
+    const p = audio.currentTime / audio.duration;
+    $("#seek").value = p * 1000;
+    $("#player").style.setProperty("--p", p * 100 + "%");
+  }
 };
 audio.onplay = audio.onpause = setIcon;
 audio.onended = () => step(1);
@@ -412,6 +464,7 @@ function renderLists() {
     if (s.id === curId) li.className = "on";
     const b = mkRow(s.name, mb(s.size), "dot");
     b.onclick = () => { unlock(); play(s.id, items.map(x => x.id)); };
+    bindRow(b, s, items.map(x => x.id));
     const d = document.createElement("button");
     d.className = "del"; d.textContent = "Togli";
     d.onclick = () => { l.songIds = l.songIds.filter(x => x !== s.id); saveList(l); renderLists(); };
@@ -465,6 +518,117 @@ $("#delList").onclick = () => {
   lists = lists.filter(x => x.id !== openId);
   openId = null;
   renderLists();
+};
+
+let toastT = null;
+function toast(msg) {
+  const t = $("#toast");
+  t.textContent = msg;
+  t.hidden = false;
+  clearTimeout(toastT);
+  toastT = setTimeout(() => { t.hidden = true; }, 1800);
+}
+function addNext(id) { upNext.push(id); toast("Aggiunta in coda"); renderQueue(); }
+function closeMenu() { $("#sheet").hidden = true; }
+
+function menu(s, ctx) {
+  const box = $("#sheetBox");
+  box.innerHTML = "";
+  const h = document.createElement("div");
+  h.className = "sh";
+  h.textContent = s.name;
+  box.append(h);
+  const add = (label, fn) => {
+    const b = document.createElement("button");
+    b.textContent = label;
+    b.onclick = () => { closeMenu(); if (fn) fn(); };
+    box.append(b);
+  };
+  add("Riproduci", () => { unlock(); play(s.id, ctx); });
+  add("Metti in coda", () => addNext(s.id));
+  lists.forEach(l => add("Aggiungi a playlist: " + l.name, () => {
+    if (l.songIds.includes(s.id)) { toast("Già nella playlist"); return; }
+    l.songIds.push(s.id);
+    saveList(l);
+    renderLists();
+    toast("Aggiunta a " + l.name);
+  }));
+  add("Annulla");
+  $("#sheet").hidden = false;
+}
+
+function bindRow(b, s, ctx) {
+  let x0 = 0, y0 = 0, dx = 0, timer = null, down = false, moved = false, fired = false;
+  const reset = () => { clearTimeout(timer); down = false; b.style.transition = "transform .15s"; b.style.transform = ""; };
+  b.addEventListener("pointerdown", e => {
+    x0 = e.clientX; y0 = e.clientY; dx = 0; down = true; moved = false; fired = false;
+    b.style.transition = "none";
+    timer = setTimeout(() => { if (down && !moved) { fired = true; down = false; menu(s, ctx); } }, 500);
+  });
+  b.addEventListener("pointermove", e => {
+    if (!down) return;
+    dx = e.clientX - x0;
+    const dy = e.clientY - y0;
+    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) { moved = true; clearTimeout(timer); }
+    if (dx > 0 && dx > Math.abs(dy)) b.style.transform = "translateX(" + Math.min(dx, 90) + "px)";
+  });
+  b.addEventListener("pointerup", () => { if (down && dx > 70) { fired = true; addNext(s.id); } reset(); });
+  b.addEventListener("pointercancel", reset);
+  b.addEventListener("contextmenu", e => e.preventDefault());
+  b.addEventListener("click", e => { if (fired) { e.stopImmediatePropagation(); e.preventDefault(); fired = false; } }, true);
+}
+
+function renderQueue() {
+  const ul = $("#qlist"), un = $("#qnext");
+  ul.innerHTML = "";
+  un.innerHTML = "";
+  $("#qclear").hidden = upNext.length === 0;
+  if (!upNext.length) {
+    const e = document.createElement("li");
+    e.className = "qe";
+    e.textContent = "Nessuna canzone in coda. Scorri una canzone verso destra oppure tienila premuta.";
+    ul.append(e);
+  }
+  upNext.forEach((id, i) => {
+    const s = songById(id);
+    if (!s) return;
+    const li = document.createElement("li");
+    const b = mkRow(s.name, mb(s.size), "dot");
+    b.onclick = () => { unlock(); upNext.splice(i, 1); play(id, null, true); };
+    const d = document.createElement("button");
+    d.className = "del"; d.textContent = "Togli";
+    d.onclick = () => { upNext.splice(i, 1); renderQueue(); };
+    li.append(b, d);
+    ul.append(li);
+  });
+  const k = queue.indexOf(ctxId);
+  const rest = k >= 0 ? queue.slice(k + 1).filter(songById) : [];
+  $("#qctx").textContent = rest.length ? "Poi dalla lista" : "";
+  rest.slice(0, 40).forEach(id => {
+    const s = songById(id);
+    const li = document.createElement("li");
+    const b = mkRow(s.name, mb(s.size), "dot");
+    b.onclick = () => { unlock(); play(id, queue); };
+    const d = document.createElement("button");
+    d.className = "del"; d.textContent = "Togli";
+    d.onclick = () => { queue = queue.filter(x => x !== id); renderQueue(); };
+    li.append(b, d);
+    un.append(li);
+  });
+}
+
+$("#player").onclick = e => {
+  const p = $("#player");
+  if (!p.classList.contains("open") && !e.target.closest("button")) p.classList.add("open");
+};
+$("#closeNp").onclick = () => $("#player").classList.remove("open");
+$("#qclear").onclick = () => { upNext = []; renderQueue(); };
+$("#sheet").onclick = e => { if (e.target.id === "sheet") closeMenu(); };
+$("#airBtn").onclick = () => {
+  const b = $("#airBtn");
+  if (audio.webkitShowPlaybackTargetPicker) { audio.webkitShowPlaybackTargetPicker(); return; }
+  b.textContent = "Apri il Centro di Controllo e tocca AirPlay";
+  setTimeout(() => { b.textContent = "Trasferisci su un altro dispositivo"; }, 4000);
 };
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
