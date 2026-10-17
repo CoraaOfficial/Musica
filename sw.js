@@ -1,4 +1,4 @@
-const CACHE = "canzoni-v6";
+const CACHE = "canzoni-v8";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icon.png"];
 
 self.addEventListener("install", e => {
@@ -15,6 +15,10 @@ self.addEventListener("activate", e => {
 
 self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
+  if (new URL(e.request.url).pathname.endsWith("/version.json")) {
+    e.respondWith(fetch(e.request, { cache: "no-store" }));
+    return;
+  }
   e.respondWith(
     caches.match(e.request).then(hit => {
       const net = fetch(e.request)
