@@ -376,7 +376,7 @@ function setIcon() {
 $("#addBtn").onclick = () => $("#file").click();
 $("#file").onchange = e => { addFiles([...e.target.files]); e.target.value = ""; };
 $("#q").oninput = render;
-$("#pp").onclick = () => { if (audio.src) audio.paused ? audio.play() : audio.pause(); };
+$("#pp").onclick = () => { if (audio.src) { if (audio.paused) resume(); else audio.pause(); } };
 $("#prev").onclick = () => step(-1);
 $("#next").onclick = () => step(1);
 $("#seek").oninput = e => { if (isFinite(audio.duration)) audio.currentTime = e.target.value / 1000 * audio.duration; };
@@ -395,13 +395,12 @@ audio.onpause = () => { setIcon(); setState("paused"); };
 audio.onended = () => step(1);
 if ("mediaSession" in navigator) {
   try {
-    navigator.mediaSession.setActionHandler("play", () => { audio.play().catch(() => {}); });
+    navigator.mediaSession.setActionHandler("play", () => resume());
     navigator.mediaSession.setActionHandler("pause", () => audio.pause());
     navigator.mediaSession.setActionHandler("previoustrack", () => step(-1));
     navigator.mediaSession.setActionHandler("nexttrack", () => step(1));
-    navigator.mediaSession.setActionHandler("seekbackward", null);
-    navigator.mediaSession.setActionHandler("seekforward", null);
-    navigator.mediaSession.setActionHandler("seekto", null);
+    navigator.mediaSession.setActionHandler("seekbackward", () => step(-1));
+    navigator.mediaSession.setActionHandler("seekforward", () => step(1));
   } catch (e) {}
 }
 function saveList(l) { if (db && !l.mem && l.id > 0) { try { lstore("readwrite").put(l); } catch (e) { db = null; } } }
@@ -844,7 +843,7 @@ async function diag() {
 }
 $("#diagBtn").onclick = diag;
 
-const APP_VERSION = 8;
+const APP_VERSION = 9;
 
 async function updateNow() {
   if (navigator.onLine === false) { toast("Serve internet per aggiornare", 3000); return; }
@@ -881,6 +880,23 @@ async function checkVersion() {
   }
 }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkVersion(); });
+function reloadAudio(t) {
+  audio.load();
+  audio.addEventListener("loadedmetadata", () => { audio.currentTime = t; audio.play().catch(() => {}); }, { once: true });
+}
+function resume() {
+  const t0 = audio.currentTime;
+  audio.play().catch(() => {});
+  setTimeout(() => { if (audio.src && !audio.paused && audio.currentTime === t0) reloadAudio(t0); }, 1200);
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible" || !curId) return;
+  setIcon();
+  if (audio.paused) return;
+  const t = audio.currentTime;
+  setTimeout(() => { if (!audio.paused && audio.currentTime === t) reloadAudio(t); }, 800);
+});
+
 checkVersion();
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
