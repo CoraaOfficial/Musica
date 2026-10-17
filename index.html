@@ -93,6 +93,7 @@ li .song{touch-action:pan-y;-webkit-touch-callout:none;-webkit-user-select:none;
 #sheetBox{width:100%;max-width:640px;margin:0 auto;background:var(--surface);border-radius:18px 18px 0 0;padding:8px 8px calc(12px + env(safe-area-inset-bottom,0px));max-height:70vh;overflow:auto}
 #sheetBox button{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);color:var(--text);font:500 17px "Bricolage Grotesque",system-ui,sans-serif;padding:15px 12px;cursor:pointer}
 .sh{color:var(--muted);padding:10px 12px;font-size:14px}
+#diag{white-space:pre-wrap;font:13px/1.5 ui-monospace,Menlo,monospace;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0;color:var(--text)}
 .warn{border:1px solid #D64545;border-radius:12px;padding:12px;margin:0 0 12px;font-size:14px;display:flex;flex-direction:column;gap:8px}
 .warn button{align-self:flex-start;background:#D64545;color:#fff;border:0;border-radius:8px;padding:8px 12px;font:600 14px "Bricolage Grotesque",system-ui,sans-serif;cursor:pointer}
 </style>
@@ -107,6 +108,8 @@ li .song{touch-action:pan-y;-webkit-touch-callout:none;-webkit-user-select:none;
   <input type="file" id="file" accept="audio/*,.mp3,.m4a,.wav" multiple>
   <input class="search" id="q" type="search" placeholder="Cerca una canzone" aria-label="Cerca una canzone">
   <ul id="list"></ul>
+  <button class="back" id="diagBtn">Controlla la memoria</button>
+  <pre id="diag" hidden></pre>
   <div class="empty" id="empty">Tocca “Aggiungi canzoni” e scegli i file mp3 dall’iPhone. Resteranno salvati qui.</div>
 </section>
   <section id="viewLists" hidden>
@@ -317,10 +320,11 @@ async function play(id, q, fromNext) {
   if (!blob) {
     try {
       const buf = await getData(id);
-      if (!buf) throw new Error("vuoto");
+      if (!buf || buf.byteLength === 0 || (s.size && buf.byteLength !== s.size)) throw new Error("letti " + (buf ? buf.byteLength : 0) + " byte su " + s.size);
       blob = new Blob([buf], { type: s.type || "audio/mpeg" });
     } catch (e) {
-      $("#nowt").textContent = "Impossibile leggere questo file: eliminalo e aggiungilo di nuovo";
+      note("Lettura fallita: " + e.message);
+      $("#nowt").textContent = "Non riesco a leggere questa canzone dalla memoria (" + e.message + "). Eliminala e riaggiungila.";
       $("#player").classList.add("show");
       return;
     }
@@ -329,7 +333,7 @@ async function play(id, q, fromNext) {
   if (url) URL.revokeObjectURL(url);
   url = URL.createObjectURL(blob);
   audio.src = url;
-  audio.play().catch(() => {});
+  audio.play().catch(err => { if (err && err.name === "NotAllowedError") toast("Tocca play per avviare"); });
   $("#nowt").textContent = s.name;
   $("#player").classList.add("show");
   if ("mediaSession" in navigator) {
@@ -353,7 +357,7 @@ function step(d) {
 function unlock() {
   if (unlock.done) return;
   unlock.done = true;
-  audio.src = SILENT;
+  audio.src = silentUrl || (silentUrl = silentWav());
   audio.play().catch(() => {});
 }
 
@@ -768,6 +772,64 @@ $("#expBtn").onclick = exportLists;
 $("#impBtn").onclick = () => $("#impFile").click();
 $("#impFile").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) importLists(f); };
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !db) reconnect(); });
+
+let silentUrl = null;
+function silentWav() {
+  const n = 800, b = new Uint8Array(44 + n), v = new DataView(b.buffer);
+  const w = (o, s) => [...s].forEach((c, i) => { b[o + i] = c.charCodeAt(0); });
+  w(0, "RIFF"); v.setUint32(4, 36 + n, true); w(8, "WAVEfmt ");
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true);
+  w(36, "data"); v.setUint32(40, n, true); b.fill(128, 44);
+  return URL.createObjectURL(new Blob([b], { type: "audio/wav" }));
+}
+
+const dlog = [];
+function note(m) { dlog.push(new Date().toLocaleTimeString("it") + " " + m); if (dlog.length > 12) dlog.shift(); }
+window.addEventListener("error", e => note("Errore: " + e.message));
+window.addEventListener("unhandledrejection", e => note("Errore: " + ((e.reason && e.reason.message) || e.reason)));
+audio.onerror = () => {
+  if (audio.src === silentUrl) return;
+  const c = audio.error ? audio.error.code : 0;
+  note("Audio errore " + c);
+  $("#nowt").textContent = "La canzone non si riproduce (errore " + c + "). Prova a riaggiungerla.";
+};
+audio.onloadedmetadata = () => { $("#dur").textContent = fmt(audio.duration); };
+
+async function diag() {
+  const out = [], pre = $("#diag");
+  pre.hidden = false;
+  pre.textContent = "Controllo in corso…";
+  const standalone = navigator.standalone || (window.matchMedia && matchMedia("(display-mode: standalone)").matches);
+  out.push("Aperta dall’icona Home: " + (standalone ? "sì" : "no (Safari)"));
+  try {
+    out.push("Memoria protetta: " + (navigator.storage && navigator.storage.persisted ? ((await navigator.storage.persisted()) ? "sì" : "no") : "non disponibile"));
+  } catch (e) {}
+  try {
+    if (navigator.storage && navigator.storage.estimate) {
+      const q = await navigator.storage.estimate();
+      out.push("Spazio usato: " + mb(q.usage || 0) + " su " + mb(q.quota || 0));
+    }
+  } catch (e) {}
+  if (!db) await reconnect();
+  out.push("Database aperto: " + (db ? "sì" : "no"));
+  if (db) {
+    try {
+      const ms = await rq(store("readonly").getAll());
+      let ok = 0, vuote = 0, manca = 0;
+      for (const s of ms) {
+        const b = await rq(dstore("readonly").get(s.id));
+        if (!b) manca++; else if (b.byteLength === s.size) ok++; else vuote++;
+      }
+      out.push("Canzoni nel database: " + ms.length + " (integre " + ok + ", incomplete o vuote " + vuote + ", senza audio " + manca + ")");
+      out.push("Playlist nel database: " + (await rq(lstore("readonly").count())));
+    } catch (e) { out.push("Errore lettura: " + e.message); }
+  }
+  out.push("In memoria ora: " + songs.length + " canzoni, " + lists.length + " playlist");
+  if (dlog.length) out.push("Ultimi eventi:\n" + dlog.join("\n"));
+  pre.textContent = out.join("\n");
+}
+$("#diagBtn").onclick = diag;
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
