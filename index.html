@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Le mie canzoni</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon.png">
+<meta name="apple-mobile-web-app-title" content="Canzoni">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F3F6F8;--surface:#FFFFFF;--text:#101820;--muted:#5B6F7F;--accent:#E08A00;--on-accent:#101820;--line:#D8E1E8;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101820;--surface:#1A2733;--text:#EAF0F4;--muted:#8FA3B3;--accent:#FFB703;--on-accent:#101820;--line:#27384A;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#101820;--surface:#1A2733;--text:#EAF0F4;--muted:#8FA3B3;--accent:#FFB703;--on-accent:#101820;--line:#27384A;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--text);font:500 16px/1.4 "Bricolage Grotesque",system-ui,-apple-system,sans-serif;padding-bottom:260px;-webkit-tap-highlight-color:transparent}
+main{max-width:640px;margin:0 auto;padding:20px 16px}
+h1{font-size:30px;line-height:1.1;margin:8px 0 4px;font-weight:700;letter-spacing:-.02em}
+.sub{color:var(--muted);margin:0 0 18px}
+.add{display:block;width:100%;border:0;border-radius:14px;background:var(--accent);color:var(--on-accent);font:700 17px/1.2 "Bricolage Grotesque",system-ui,sans-serif;padding:16px;cursor:pointer}
+.add:active{transform:scale(.98)}
+input[type=file]{display:none}
+.search{width:100%;margin:14px 0 6px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--text);font:inherit}
+.search:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+ul{list-style:none;margin:0;padding:0}
+li{display:flex;align-items:center;border-bottom:1px solid var(--line)}
+li .song{flex:1;min-width:0;text-align:left;background:none;border:0;color:var(--text);font:inherit;padding:14px 4px;cursor:pointer;display:flex;gap:12px;align-items:center}
+li .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+li .m{color:var(--muted);font-size:13px}
+li.on .t{color:var(--accent);font-weight:700}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--line);flex:none}
+li.on .dot{background:var(--accent)}
+.del{background:none;border:0;color:var(--muted);font:inherit;font-size:13px;padding:12px 8px;cursor:pointer}
+.del.sure{color:#D64545;font-weight:700}
+.empty{color:var(--muted);padding:28px 4px;text-align:center}
+#player{position:fixed;left:0;right:0;bottom:calc(58px + env(safe-area-inset-bottom,0px));background:var(--surface);border-top:1px solid var(--line);padding:12px 16px;display:none;z-index:4}
+#player.show{display:block}
+.pin{max-width:640px;margin:0 auto}
+#nowt{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+input[type=range]{flex:1;accent-color:var(--accent)}
+.ctl{display:flex;justify-content:center;align-items:center;gap:28px;margin-top:4px}
+.ctl button{background:none;border:0;color:var(--text);cursor:pointer;padding:8px}
+.ctl .play{background:var(--accent);color:var(--on-accent);border-radius:50%;width:56px;height:56px;display:flex;align-items:center;justify-content:center}
+svg{width:26px;height:26px;fill:currentColor}
+[hidden]{display:none!important}
+#tabs{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--bg);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
+#tabs button{flex:1;min-height:58px;background:none;border:0;color:var(--muted);font:500 13px "Bricolage Grotesque",system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer}
+#tabs button.on{color:var(--accent);font-weight:700}
+#tabs svg{width:24px;height:24px}
+.row2{display:flex;gap:10px;margin:12px 0}
+.row2 .add{font-size:15px;padding:13px}
+.add.alt{background:var(--surface);color:var(--text);border:1px solid var(--line)}
+.newrow{display:flex;gap:8px;margin-top:10px}
+.newrow .search{margin:0;flex:1}
+.newrow .add{width:auto;padding:12px 18px;font-size:15px}
+.back{background:none;border:0;color:var(--accent);font:700 16px "Bricolage Grotesque",system-ui,sans-serif;padding:8px 0;cursor:pointer}
+.chk{width:22px;height:22px;border-radius:6px;border:2px solid var(--line);flex:none;display:flex;align-items:center;justify-content:center}
+.chk.on{background:var(--accent);border-color:var(--accent)}
+.big{display:block;margin:24px auto 0;font-size:15px}
+#dlg{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px;z-index:10}
+#dlg .box{background:var(--surface);border-radius:16px;padding:18px;width:100%;max-width:420px}
+#dlg .search{margin:0}
+#dlg .sub{margin:0 0 10px}
+</style>
+</head>
+<body>
+<main>
+  <section id="viewSongs">
+  <h1>Le mie canzoni</h1>
+  <p class="sub" id="count">Nessuna canzone salvata</p>
+  <button class="add" id="addBtn">Aggiungi canzoni</button>
+  <input type="file" id="file" accept="audio/*,.mp3,.m4a,.wav" multiple>
+  <input class="search" id="q" type="search" placeholder="Cerca una canzone" aria-label="Cerca una canzone">
+  <ul id="list"></ul>
+  <div class="empty" id="empty">Tocca “Aggiungi canzoni” e scegli i file mp3 dall’iPhone. Resteranno salvati qui.</div>
+</section>
+  <section id="viewLists" hidden>
+    <div id="listHome">
+      <h1>Playlist</h1>
+      <p class="sub">Raggruppa le tue canzoni come vuoi</p>
+      <button class="add" id="newBtn">Nuova playlist</button>
+      <div class="newrow" id="newRow" hidden><input class="search" id="newName" placeholder="Nome della playlist" maxlength="40" aria-label="Nome della playlist"><button class="add" id="createBtn">Crea</button></div>
+      <ul id="lists"></ul>
+      <div class="empty" id="noLists">Crea una playlist e aggiungici le canzoni della tua libreria.</div>
+    </div>
+    <div id="listOpen" hidden>
+      <button class="back" id="backBtn">‹ Playlist</button>
+      <h1 id="lname"></h1>
+      <p class="sub" id="lcount"></p>
+      <div class="row2"><button class="add" id="playAll">Riproduci</button><button class="add alt" id="pickBtn">Aggiungi canzoni</button></div>
+      <ul id="lsongs"></ul>
+      <div class="empty" id="emptyL">Questa playlist è vuota. Tocca “Aggiungi canzoni”.</div>
+      <button class="del big" id="delList">Elimina playlist</button>
+    </div>
+    <div id="picker" hidden>
+      <h1>Aggiungi canzoni</h1>
+      <p class="sub" id="pname"></p>
+      <button class="add" id="doneBtn">Fatto</button>
+      <ul id="plist"></ul>
+      <div class="empty" id="noSongsP">Prima aggiungi qualche mp3 dalla scheda Canzoni.</div>
+    </div>
+  </section>
+</main>
+<nav id="tabs">
+  <button id="tabSongs" class="on"><svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3z"/></svg>Canzoni</button>
+  <button id="tabLists"><svg viewBox="0 0 24 24"><path d="M4 6h12v2H4zm0 5h12v2H4zm0 5h8v2H4zM18 8v7.3A2.5 2.5 0 1 0 19.5 17.5V10H22V8z"/></svg>Playlist</button>
+</nav>
+
+<div id="player">
+  <div class="pin">
+    <div id="nowt"></div>
+    <div class="bar"><span id="cur">0:00</span><input type="range" id="seek" min="0" max="1000" value="0" aria-label="Posizione"><span id="dur">0:00</span></div>
+    <div class="ctl">
+      <button id="prev" aria-label="Precedente"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zM9.5 12 18 18V6z"/></svg></button>
+      <button id="pp" class="play" aria-label="Play o pausa"><svg id="ppi" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+      <button id="next" aria-label="Successiva"><svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg></button>
+    </div>
+  </div>
+</div>
+<div id="dlg" hidden>
+  <div class="box">
+    <p class="sub" id="dlgInfo"></p>
+    <input class="search" id="dlgName" maxlength="80" aria-label="Nome della canzone">
+    <div class="row2"><button class="add alt" id="dlgSkip">Tieni il nome</button><button class="add" id="dlgOk">Salva</button></div>
+  </div>
+</div>
+<audio id="a" preload="metadata"></audio>
+
+<script>
+const $ = s => document.querySelector(s);
+const audio = $("#a");
+let db = null, songs = [], shown = [], curId = null, url = null, nextId = 1, armed = null;
+let lists = [], queue = [], openId = null, picking = false, armedL = false;
+
+function openDb() {
+  return new Promise((res, rej) => {
+    try {
+      const r = indexedDB.open("musica", 3);
+      r.onupgradeneeded = () => {
+        const d = r.result;
+        if (!d.objectStoreNames.contains("songs")) d.createObjectStore("songs", { keyPath: "id", autoIncrement: true });
+        if (!d.objectStoreNames.contains("lists")) d.createObjectStore("lists", { keyPath: "id", autoIncrement: true });
+        if (!d.objectStoreNames.contains("data")) d.createObjectStore("data");
+      };
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    } catch (e) { rej(e); }
+  });
+}
+const store = m => db.transaction("songs", m).objectStore("songs");
+const dstore = m => db.transaction("data", m).objectStore("data");
+const rq = r => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+const lstore = m => db.transaction("lists", m).objectStore("lists");
+const SILENT = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=";
+
+async function load() {
+  try {
+    db = await openDb();
+    songs = await new Promise(res => {
+      const r = store("readonly").getAll();
+      r.onsuccess = () => res(r.result || []);
+      r.onerror = () => res([]);
+    });
+    try { lists = await rq(lstore("readonly").getAll()); } catch (e) { lists = []; }
+  } catch (e) { db = null; songs = []; }
+  songs.forEach(s => { if (s.id >= nextId) nextId = s.id + 1; });
+  lists.forEach(l => { if (l.id >= nextId) nextId = l.id + 1; });
+  render();
+}
+
+function askName(orig, n, tot) {
+  return new Promise(res => {
+    const dlg = $("#dlg"), inp = $("#dlgName");
+    $("#dlgInfo").textContent = tot > 1 ? "Rinomina la canzone " + n + " di " + tot : "Rinomina la canzone";
+    inp.value = orig;
+    dlg.hidden = false;
+    inp.focus();
+    inp.select();
+    const done = v => {
+      dlg.hidden = true;
+      $("#dlgOk").onclick = null;
+      $("#dlgSkip").onclick = null;
+      inp.onkeydown = null;
+      res(v);
+    };
+    $("#dlgOk").onclick = () => done(inp.value.trim() || orig);
+    $("#dlgSkip").onclick = () => done(orig);
+    inp.onkeydown = e => { if (e.key === "Enter") done(inp.value.trim() || orig); };
+  });
+}
+
+async function addFiles(files) {
+  const strip = f => f.name.replace(/\.[^.]+$/, "");
+  const fresh = files.filter(f => !songs.some(s => (s.orig || s.name) === strip(f) && s.size === f.size));
+  for (let i = 0; i < fresh.length; i++) {
+    const f = fresh[i];
+    const orig = strip(f);
+    const name = await askName(orig, i + 1, fresh.length);
+    const buf = await f.arrayBuffer();
+    const type = f.type || "audio/mpeg";
+    const rec = { name, orig, size: f.size, type };
+    let ok = false;
+    if (db) {
+      try {
+        rec.id = await rq(store("readwrite").add(rec));
+        await rq(dstore("readwrite").put(buf, rec.id));
+        ok = true;
+      } catch (e) {
+        try { if (rec.id) store("readwrite").delete(rec.id); } catch (e2) {}
+        rec.id = undefined;
+      }
+    }
+    if (!ok) { rec.id = nextId++; rec.mem = new Blob([buf], { type }); }
+    songs.push(rec);
+  }
+  render();
+}
+
+function mb(n) { return (n / 1048576).toFixed(1) + " MB"; }
+function fmt(t) { if (!isFinite(t)) return "0:00"; const m = Math.floor(t / 60), s = Math.floor(t % 60); return m + ":" + String(s).padStart(2, "0"); }
+
+function render() {
+  const q = $("#q").value.trim().toLowerCase();
+  songs.sort((a, b) => a.name.localeCompare(b.name, "it"));
+  shown = songs.filter(s => s.name.toLowerCase().includes(q));
+  const tag = db ? "salvate" : "solo in memoria: si perdono alla chiusura";
+  $("#count").textContent = songs.length === 0 ? "Nessuna canzone salvata" : songs.length + (songs.length === 1 ? " canzone, " : " canzoni, ") + tag;
+  $("#empty").style.display = songs.length === 0 ? "block" : "none";
+  const ul = $("#list");
+  ul.innerHTML = "";
+  shown.forEach(s => {
+    const li = document.createElement("li");
+    if (s.id === curId) li.className = "on";
+    const b = document.createElement("button");
+    b.className = "song";
+    const dot = document.createElement("span"); dot.className = "dot";
+    const box = document.createElement("span"); box.style.minWidth = "0";
+    const t = document.createElement("div"); t.className = "t"; t.textContent = s.name;
+    const m = document.createElement("div"); m.className = "m"; m.textContent = mb(s.size);
+    box.append(t, m); b.append(dot, box);
+    b.onclick = () => { unlock(); play(s.id, shown.map(x => x.id)); };
+    const d = document.createElement("button");
+    d.className = "del"; d.textContent = "Elimina";
+    d.onclick = () => {
+      if (armed === s.id) { remove(s.id); armed = null; return; }
+      armed = s.id; d.textContent = "Sicuro?"; d.classList.add("sure");
+      setTimeout(() => { if (armed === s.id) { armed = null; d.textContent = "Elimina"; d.classList.remove("sure"); } }, 3000);
+    };
+    li.append(b, d);
+    ul.append(li);
+  });
+  renderLists();
+}
+
+async function remove(id) {
+  if (db) { try { store("readwrite").delete(id); dstore("readwrite").delete(id); } catch (e) {} }
+  if (id === curId) { audio.pause(); audio.removeAttribute("src"); curId = null; $("#player").classList.remove("show"); }
+  songs = songs.filter(s => s.id !== id);
+  queue = queue.filter(x => x !== id);
+  lists.forEach(l => { if (l.songIds.includes(id)) { l.songIds = l.songIds.filter(x => x !== id); saveList(l); } });
+  render();
+}
+
+async function play(id, q) {
+  if (q) queue = q;
+  const s = songs.find(x => x.id === id);
+  if (!s) return;
+  let blob = s.mem;
+  if (!blob) {
+    try {
+      const buf = await rq(dstore("readonly").get(id));
+      blob = new Blob([buf], { type: s.type || "audio/mpeg" });
+    } catch (e) {
+      $("#nowt").textContent = "Impossibile leggere questo file: eliminalo e aggiungilo di nuovo";
+      $("#player").classList.add("show");
+      return;
+    }
+  }
+  curId = id;
+  if (url) URL.revokeObjectURL(url);
+  url = URL.createObjectURL(blob);
+  audio.src = url;
+  audio.play().catch(() => {});
+  $("#nowt").textContent = s.name;
+  $("#player").classList.add("show");
+  if ("mediaSession" in navigator) {
+    try { navigator.mediaSession.metadata = new MediaMetadata({ title: s.name, artist: "Le mie canzoni" }); } catch (e) {}
+  }
+  render();
+}
+
+function step(d) {
+  if (!queue.length) return;
+  let i = queue.indexOf(curId);
+  i = (i + d + queue.length) % queue.length;
+  play(queue[i]);
+}
+
+function unlock() {
+  if (unlock.done) return;
+  unlock.done = true;
+  audio.src = SILENT;
+  audio.play().catch(() => {});
+}
+
+function setIcon() {
+  $("#ppi").innerHTML = audio.paused ? '<path d="M8 5v14l11-7z"/>' : '<path d="M7 5h4v14H7zM13 5h4v14h-4z"/>';
+}
+
+$("#addBtn").onclick = () => $("#file").click();
+$("#file").onchange = e => { addFiles([...e.target.files]); e.target.value = ""; };
+$("#q").oninput = render;
+$("#pp").onclick = () => { if (audio.src) audio.paused ? audio.play() : audio.pause(); };
+$("#prev").onclick = () => step(-1);
+$("#next").onclick = () => step(1);
+$("#seek").oninput = e => { if (isFinite(audio.duration)) audio.currentTime = e.target.value / 1000 * audio.duration; };
+audio.ontimeupdate = () => {
+  $("#cur").textContent = fmt(audio.currentTime);
+  $("#dur").textContent = fmt(audio.duration);
+  if (isFinite(audio.duration) && audio.duration > 0) $("#seek").value = audio.currentTime / audio.duration * 1000;
+};
+audio.onplay = audio.onpause = setIcon;
+audio.onended = () => step(1);
+if ("mediaSession" in navigator) {
+  try {
+    navigator.mediaSession.setActionHandler("play", () => audio.play());
+    navigator.mediaSession.setActionHandler("pause", () => audio.pause());
+    navigator.mediaSession.setActionHandler("previoustrack", () => step(-1));
+    navigator.mediaSession.setActionHandler("nexttrack", () => step(1));
+  } catch (e) {}
+}
+function saveList(l) { if (db) { try { lstore("readwrite").put(l); } catch (e) {} } }
+function songById(id) { return songs.find(s => s.id === id); }
+function cnt(n) { return n + (n === 1 ? " canzone" : " canzoni"); }
+
+function mkRow(title, sub, mark) {
+  const b = document.createElement("button");
+  b.className = "song";
+  const k = document.createElement("span");
+  k.className = mark;
+  if (mark === "chk on") {
+    k.style.color = "var(--on-accent)";
+    k.innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>';
+  }
+  const box = document.createElement("span");
+  box.style.minWidth = "0";
+  const t = document.createElement("div"); t.className = "t"; t.textContent = title;
+  const m = document.createElement("div"); m.className = "m"; m.textContent = sub;
+  box.append(t, m);
+  b.append(k, box);
+  return b;
+}
+
+function setTab(t) {
+  $("#viewSongs").hidden = t !== "songs";
+  $("#viewLists").hidden = t !== "lists";
+  $("#tabSongs").classList.toggle("on", t === "songs");
+  $("#tabLists").classList.toggle("on", t === "lists");
+  window.scrollTo(0, 0);
+}
+
+function renderLists() {
+  const l = lists.find(x => x.id === openId);
+  if (!l) { openId = null; picking = false; }
+  const home = openId === null;
+  $("#listHome").hidden = !home;
+  $("#listOpen").hidden = home || picking;
+  $("#picker").hidden = home || !picking;
+  if (home) {
+    $("#noLists").hidden = lists.length > 0;
+    const ul = $("#lists");
+    ul.innerHTML = "";
+    lists.forEach(x => {
+      const li = document.createElement("li");
+      const b = mkRow(x.name, cnt(x.songIds.filter(songById).length), "dot");
+      b.onclick = () => { openId = x.id; picking = false; renderLists(); window.scrollTo(0, 0); };
+      li.append(b);
+      ul.append(li);
+    });
+    return;
+  }
+  if (picking) {
+    $("#pname").textContent = l.name;
+    $("#noSongsP").hidden = songs.length > 0;
+    const ul = $("#plist");
+    ul.innerHTML = "";
+    songs.forEach(s => {
+      const on = l.songIds.includes(s.id);
+      const li = document.createElement("li");
+      const b = mkRow(s.name, mb(s.size), on ? "chk on" : "chk");
+      b.onclick = () => {
+        l.songIds = on ? l.songIds.filter(x => x !== s.id) : [...l.songIds, s.id];
+        saveList(l);
+        renderLists();
+      };
+      li.append(b);
+      ul.append(li);
+    });
+    return;
+  }
+  const items = l.songIds.map(songById).filter(Boolean);
+  $("#lname").textContent = l.name;
+  $("#lcount").textContent = cnt(items.length);
+  $("#emptyL").hidden = items.length > 0;
+  const ul = $("#lsongs");
+  ul.innerHTML = "";
+  items.forEach(s => {
+    const li = document.createElement("li");
+    if (s.id === curId) li.className = "on";
+    const b = mkRow(s.name, mb(s.size), "dot");
+    b.onclick = () => { unlock(); play(s.id, items.map(x => x.id)); };
+    const d = document.createElement("button");
+    d.className = "del"; d.textContent = "Togli";
+    d.onclick = () => { l.songIds = l.songIds.filter(x => x !== s.id); saveList(l); renderLists(); };
+    li.append(b, d);
+    ul.append(li);
+  });
+}
+
+async function createList() {
+  const name = $("#newName").value.trim();
+  if (!name) return;
+  const l = { name, songIds: [] };
+  let ok = false;
+  if (db) { try { l.id = await rq(lstore("readwrite").add(l)); ok = true; } catch (e) {} }
+  if (!ok) l.id = nextId++;
+  lists.push(l);
+  $("#newName").value = "";
+  $("#newRow").hidden = true;
+  openId = l.id;
+  picking = true;
+  renderLists();
+  window.scrollTo(0, 0);
+}
+
+$("#tabSongs").onclick = () => setTab("songs");
+$("#tabLists").onclick = () => setTab("lists");
+$("#newBtn").onclick = () => { const r = $("#newRow"); r.hidden = !r.hidden; if (!r.hidden) $("#newName").focus(); };
+$("#createBtn").onclick = createList;
+$("#newName").onkeydown = e => { if (e.key === "Enter") createList(); };
+$("#backBtn").onclick = () => { openId = null; picking = false; renderLists(); };
+$("#pickBtn").onclick = () => { picking = true; renderLists(); window.scrollTo(0, 0); };
+$("#doneBtn").onclick = () => { picking = false; renderLists(); window.scrollTo(0, 0); };
+$("#playAll").onclick = () => {
+  const l = lists.find(x => x.id === openId);
+  const ids = l ? l.songIds.filter(songById) : [];
+  if (ids.length) { unlock(); play(ids[0], ids); }
+};
+$("#delList").onclick = () => {
+  const b = $("#delList");
+  if (!armedL) {
+    armedL = true;
+    b.textContent = "Tocca ancora per eliminare";
+    b.classList.add("sure");
+    setTimeout(() => { armedL = false; b.textContent = "Elimina playlist"; b.classList.remove("sure"); }, 3000);
+    return;
+  }
+  armedL = false;
+  b.textContent = "Elimina playlist";
+  b.classList.remove("sure");
+  if (db) { try { lstore("readwrite").delete(openId); } catch (e) {} }
+  lists = lists.filter(x => x.id !== openId);
+  openId = null;
+  renderLists();
+};
+
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+load();
+</script>
+</body>
+</html>
