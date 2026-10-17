@@ -93,6 +93,8 @@ li .song{touch-action:pan-y;-webkit-touch-callout:none;-webkit-user-select:none;
 #sheetBox{width:100%;max-width:640px;margin:0 auto;background:var(--surface);border-radius:18px 18px 0 0;padding:8px 8px calc(12px + env(safe-area-inset-bottom,0px));max-height:70vh;overflow:auto}
 #sheetBox button{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);color:var(--text);font:500 17px "Bricolage Grotesque",system-ui,sans-serif;padding:15px 12px;cursor:pointer}
 .sh{color:var(--muted);padding:10px 12px;font-size:14px}
+.warn{border:1px solid #D64545;border-radius:12px;padding:12px;margin:0 0 12px;font-size:14px;display:flex;flex-direction:column;gap:8px}
+.warn button{align-self:flex-start;background:#D64545;color:#fff;border:0;border-radius:8px;padding:8px 12px;font:600 14px "Bricolage Grotesque",system-ui,sans-serif;cursor:pointer}
 </style>
 </head>
 <body>
@@ -100,6 +102,7 @@ li .song{touch-action:pan-y;-webkit-touch-callout:none;-webkit-user-select:none;
   <section id="viewSongs">
   <h1>Le mie canzoni</h1>
   <p class="sub" id="count">Nessuna canzone salvata</p>
+  <div class="warn" id="warn" hidden><span>Alcune canzoni non sono salvate nella memoria del telefono e spariranno alla chiusura dell’app.</span><button id="rescueBtn">Riprova a salvarle</button></div>
   <button class="add" id="addBtn">Aggiungi canzoni</button>
   <input type="file" id="file" accept="audio/*,.mp3,.m4a,.wav" multiple>
   <input class="search" id="q" type="search" placeholder="Cerca una canzone" aria-label="Cerca una canzone">
@@ -114,6 +117,8 @@ li .song{touch-action:pan-y;-webkit-touch-callout:none;-webkit-user-select:none;
       <div class="newrow" id="newRow" hidden><input class="search" id="newName" placeholder="Nome della playlist" maxlength="40" aria-label="Nome della playlist"><button class="add" id="createBtn">Crea</button></div>
       <ul id="lists"></ul>
       <div class="empty" id="noLists">Crea una playlist e aggiungici le canzoni della tua libreria.</div>
+      <div class="row2"><button class="add alt" id="expBtn">Salva playlist in un file</button><button class="add alt" id="impBtn">Ripristina da file</button></div>
+      <input type="file" id="impFile" accept=".json,.txt,application/json,text/plain">
     </div>
     <div id="listOpen" hidden>
       <button class="back" id="backBtn">‹ Playlist</button>
@@ -173,7 +178,7 @@ li .song{touch-action:pan-y;-webkit-touch-callout:none;-webkit-user-select:none;
 const $ = s => document.querySelector(s);
 const audio = $("#a");
 let db = null, songs = [], shown = [], curId = null, url = null, nextId = 1, armed = null;
-let lists = [], queue = [], openId = null, picking = false, armedL = false, upNext = [], ctxId = null;
+let lists = [], queue = [], openId = null, picking = false, armedL = false, upNext = [], ctxId = null, reconnecting = null;
 
 function openDb() {
   return new Promise((res, rej) => {
@@ -199,13 +204,14 @@ const SILENT = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AA
 async function load() {
   try {
     db = await openDb();
+    watchDb();
     songs = await new Promise(res => {
       const r = store("readonly").getAll();
       r.onsuccess = () => res(r.result || []);
       r.onerror = () => res([]);
     });
     try { lists = await rq(lstore("readonly").getAll()); } catch (e) { lists = []; }
-  } catch (e) { db = null; songs = []; }
+  } catch (e) { db = null; songs = []; setTimeout(reconnect, 1500); }
   songs.forEach(s => { if (s.id >= nextId) nextId = s.id + 1; });
   lists.forEach(l => { if (l.id >= nextId) nextId = l.id + 1; });
   render();
@@ -235,6 +241,7 @@ function askName(orig, n, tot) {
 async function addFiles(files) {
   const strip = f => f.name.replace(/\.[^.]+$/, "");
   const fresh = files.filter(f => !songs.some(s => (s.orig || s.name) === strip(f) && s.size === f.size));
+  let bad = 0;
   for (let i = 0; i < fresh.length; i++) {
     const f = fresh[i];
     const orig = strip(f);
@@ -242,20 +249,14 @@ async function addFiles(files) {
     const buf = await f.arrayBuffer();
     const type = f.type || "audio/mpeg";
     const rec = { name, orig, size: f.size, type };
-    let ok = false;
-    if (db) {
-      try {
-        rec.id = await rq(store("readwrite").add(rec));
-        await rq(dstore("readwrite").put(buf, rec.id));
-        ok = true;
-      } catch (e) {
-        try { if (rec.id) store("readwrite").delete(rec.id); } catch (e2) {}
-        rec.id = undefined;
-      }
+    if (!(await saveSong(rec, buf))) {
+      rec.id = -(nextId++);
+      rec.mem = new Blob([buf], { type });
+      bad++;
     }
-    if (!ok) { rec.id = nextId++; rec.mem = new Blob([buf], { type }); }
     songs.push(rec);
   }
+  if (bad) toast(bad + (bad === 1 ? " canzone non si è salvata" : " canzoni non si sono salvate"));
   render();
 }
 
@@ -269,6 +270,7 @@ function render() {
   const tag = db ? "salvate" : "solo in memoria: si perdono alla chiusura";
   $("#count").textContent = songs.length === 0 ? "Nessuna canzone salvata" : songs.length + (songs.length === 1 ? " canzone, " : " canzoni, ") + tag;
   $("#empty").style.display = songs.length === 0 ? "block" : "none";
+  $("#warn").hidden = !songs.some(s => s.mem);
   const ul = $("#list");
   ul.innerHTML = "";
   shown.forEach(s => {
@@ -279,7 +281,7 @@ function render() {
     const dot = document.createElement("span"); dot.className = "dot";
     const box = document.createElement("span"); box.style.minWidth = "0";
     const t = document.createElement("div"); t.className = "t"; t.textContent = s.name;
-    const m = document.createElement("div"); m.className = "m"; m.textContent = mb(s.size);
+    const m = document.createElement("div"); m.className = "m"; m.textContent = mb(s.size) + (s.mem ? " (non salvata)" : "");
     box.append(t, m); b.append(dot, box);
     b.onclick = () => { unlock(); play(s.id, shown.map(x => x.id)); };
     bindRow(b, s, shown.map(x => x.id));
@@ -314,7 +316,8 @@ async function play(id, q, fromNext) {
   let blob = s.mem;
   if (!blob) {
     try {
-      const buf = await rq(dstore("readonly").get(id));
+      const buf = await getData(id);
+      if (!buf) throw new Error("vuoto");
       blob = new Blob([buf], { type: s.type || "audio/mpeg" });
     } catch (e) {
       $("#nowt").textContent = "Impossibile leggere questo file: eliminalo e aggiungilo di nuovo";
@@ -384,7 +387,7 @@ if ("mediaSession" in navigator) {
     navigator.mediaSession.setActionHandler("nexttrack", () => step(1));
   } catch (e) {}
 }
-function saveList(l) { if (db) { try { lstore("readwrite").put(l); } catch (e) {} } }
+function saveList(l) { if (db && !l.mem && l.id > 0) { try { lstore("readwrite").put(l); } catch (e) { db = null; } } }
 function songById(id) { return songs.find(s => s.id === id); }
 function cnt(n) { return n + (n === 1 ? " canzone" : " canzoni"); }
 
@@ -476,11 +479,8 @@ function renderLists() {
 async function createList() {
   const name = $("#newName").value.trim();
   if (!name) return;
-  const l = { name, songIds: [] };
-  let ok = false;
-  if (db) { try { l.id = await rq(lstore("readwrite").add(l)); ok = true; } catch (e) {} }
-  if (!ok) l.id = nextId++;
-  lists.push(l);
+  await reconnect();
+  const l = await newList(name, []);
   $("#newName").value = "";
   $("#newRow").hidden = true;
   openId = l.id;
@@ -630,6 +630,144 @@ $("#airBtn").onclick = () => {
   b.textContent = "Apri il Centro di Controllo e tocca AirPlay";
   setTimeout(() => { b.textContent = "Trasferisci su un altro dispositivo"; }, 4000);
 };
+
+function watchDb() {
+  if (!db) return;
+  db.onclose = () => { db = null; };
+  db.onversionchange = () => { db.close(); db = null; };
+}
+
+function reconnect() {
+  if (db) return Promise.resolve(true);
+  if (reconnecting) return reconnecting;
+  reconnecting = (async () => {
+    try { db = await openDb(); } catch (e) { db = null; return false; }
+    watchDb();
+    try {
+      const ds = await rq(store("readonly").getAll());
+      const dl = await rq(lstore("readonly").getAll());
+      songs = ds.concat(songs.filter(s => s.mem));
+      lists = dl.concat(lists.filter(l => l.mem));
+      render();
+    } catch (e) {}
+    return true;
+  })().finally(() => { reconnecting = null; });
+  return reconnecting;
+}
+
+async function getData(id) {
+  for (let t = 0; t < 2; t++) {
+    try {
+      if (!db) await reconnect();
+      return await rq(dstore("readonly").get(id));
+    } catch (e) { db = null; }
+  }
+  return null;
+}
+
+async function saveSong(rec, buf) {
+  if (!(await reconnect())) return false;
+  let id = null;
+  try {
+    id = await new Promise((res, rej) => {
+      const tx = db.transaction(["songs", "data"], "readwrite");
+      let nid = null;
+      const r = tx.objectStore("songs").add(rec);
+      r.onsuccess = () => { nid = r.result; tx.objectStore("data").put(buf, nid); };
+      tx.oncomplete = () => res(nid);
+      tx.onerror = tx.onabort = () => rej(tx.error);
+    });
+    const chk = await rq(dstore("readonly").get(id));
+    if (chk && chk.byteLength === buf.byteLength) { rec.id = id; return true; }
+  } catch (e) { db = null; }
+  try { if (id !== null) { store("readwrite").delete(id); dstore("readwrite").delete(id); } } catch (e) {}
+  return false;
+}
+
+async function newList(name, ids) {
+  const l = { name, songIds: ids };
+  let ok = false;
+  if (db) { try { l.id = await rq(lstore("readwrite").add(l)); ok = true; } catch (e) { db = null; } }
+  if (!ok) { l.id = -(nextId++); l.mem = true; }
+  lists.push(l);
+  return l;
+}
+
+async function rescue() {
+  const b = $("#rescueBtn");
+  b.disabled = true;
+  let ok = 0, ko = 0;
+  for (const s of songs.filter(x => x.mem)) {
+    const old = s.id;
+    const buf = await s.mem.arrayBuffer();
+    const rec = { name: s.name, orig: s.orig, size: s.size, type: s.type };
+    if (await saveSong(rec, buf)) {
+      s.id = rec.id;
+      delete s.mem;
+      ok++;
+      const swap = x => (x === old ? s.id : x);
+      lists.forEach(l => { if (l.songIds.includes(old)) { l.songIds = l.songIds.map(swap); saveList(l); } });
+      queue = queue.map(swap);
+      upNext = upNext.map(swap);
+      if (curId === old) curId = s.id;
+      if (ctxId === old) ctxId = s.id;
+    } else ko++;
+  }
+  for (const l of lists.filter(x => x.mem)) {
+    if (l.songIds.some(x => x < 0)) continue;
+    try {
+      const nid = await rq(lstore("readwrite").add({ name: l.name, songIds: l.songIds }));
+      if (openId === l.id) openId = nid;
+      l.id = nid;
+      delete l.mem;
+    } catch (e) {}
+  }
+  b.disabled = false;
+  render();
+  toast(ko ? ko + " canzoni ancora non salvate" : ok ? "Canzoni salvate" : "Niente da salvare");
+}
+
+function exportLists() {
+  if (!lists.length) { toast("Non ci sono playlist da salvare"); return; }
+  const data = { v: 1, playlists: lists.map(l => ({ name: l.name, songs: l.songIds.map(songById).filter(Boolean).map(s => ({ name: s.name, orig: s.orig || s.name, size: s.size })) })) };
+  const file = new File([JSON.stringify(data, null, 1)], "playlist-canzoni.json", { type: "application/json" });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    navigator.share({ files: [file], title: "Le mie playlist" }).catch(() => {});
+    return;
+  }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(file);
+  a.download = file.name;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  toast("File creato");
+}
+
+async function importLists(file) {
+  try {
+    const data = JSON.parse(await file.text());
+    let made = 0, miss = 0, dup = 0;
+    for (const p of data.playlists || []) {
+      if (lists.some(l => l.name === p.name)) { dup++; continue; }
+      const ids = [];
+      for (const x of p.songs || []) {
+        const s = songs.find(y => (y.orig || y.name) === (x.orig || x.name) && y.size === x.size) || songs.find(y => y.name === x.name);
+        if (s) ids.push(s.id); else miss++;
+      }
+      await newList(p.name || "Playlist", ids);
+      made++;
+    }
+    renderLists();
+    toast(made + " playlist ripristinate" + (miss ? ", " + miss + " canzoni non trovate" : "") + (dup ? ", " + dup + " già presenti" : ""));
+  } catch (e) { toast("File non valido"); }
+}
+
+$("#rescueBtn").onclick = rescue;
+$("#expBtn").onclick = exportLists;
+$("#impBtn").onclick = () => $("#impFile").click();
+$("#impFile").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) importLists(f); };
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !db) reconnect(); });
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
