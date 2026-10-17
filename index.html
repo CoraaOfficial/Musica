@@ -88,7 +88,7 @@ li .song{touch-action:pan-y;-webkit-touch-callout:none;-webkit-user-select:none;
 .xtra .add{font-size:15px;padding:13px}
 .qh{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:14px;margin-top:14px;min-height:20px}
 .qe{color:var(--muted);font-size:14px;padding:8px 4px}
-#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(150px + env(safe-area-inset-bottom,0px));background:var(--text);color:var(--bg);padding:10px 16px;border-radius:20px;font-size:14px;z-index:20}
+#toast{position:fixed;left:50%;width:max-content;max-width:88vw;text-align:center;transform:translateX(-50%);bottom:calc(150px + env(safe-area-inset-bottom,0px));background:var(--text);color:var(--bg);padding:10px 16px;border-radius:20px;font-size:14px;z-index:20}
 #sheet{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:15;display:flex;align-items:flex-end}
 #sheetBox{width:100%;max-width:640px;margin:0 auto;background:var(--surface);border-radius:18px 18px 0 0;padding:8px 8px calc(12px + env(safe-area-inset-bottom,0px));max-height:70vh;overflow:auto}
 #sheetBox button{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);color:var(--text);font:500 17px "Bricolage Grotesque",system-ui,sans-serif;padding:15px 12px;cursor:pointer}
@@ -244,12 +244,14 @@ function askName(orig, n, tot) {
 async function addFiles(files) {
   const strip = f => f.name.replace(/\.[^.]+$/, "");
   const fresh = files.filter(f => !songs.some(s => (s.orig || s.name) === strip(f) && s.size === f.size));
-  let bad = 0;
+  let bad = 0, big = 0;
   for (let i = 0; i < fresh.length; i++) {
     const f = fresh[i];
     const orig = strip(f);
+    if (f.size > 120 * 1048576) { big++; note("File troppo grande: " + mb(f.size)); continue; }
     const name = await askName(orig, i + 1, fresh.length);
-    const buf = await f.arrayBuffer();
+    let buf;
+    try { buf = await f.arrayBuffer(); } catch (e) { note("Lettura file: " + e.message); bad++; continue; }
     const type = f.type || "audio/mpeg";
     const rec = { name, orig, size: f.size, type };
     if (!(await saveSong(rec, buf))) {
@@ -259,7 +261,8 @@ async function addFiles(files) {
     }
     songs.push(rec);
   }
-  if (bad) toast(bad + (bad === 1 ? " canzone non si è salvata" : " canzoni non si sono salvate"));
+  if (big) toast(big + (big === 1 ? " file non è stato aggiunto: pesa troppo" : " file non sono stati aggiunti: pesano troppo") + ". Una canzone di solito pesa 3-10 MB: probabilmente è un video o un audio non compresso, convertilo in mp3 o m4a.", 9000);
+  else if (bad) toast(bad + (bad === 1 ? " canzone non si è salvata" : " canzoni non si sono salvate"));
   render();
 }
 
@@ -379,16 +382,21 @@ audio.ontimeupdate = () => {
     const p = audio.currentTime / audio.duration;
     $("#seek").value = p * 1000;
     $("#player").style.setProperty("--p", p * 100 + "%");
+    try { navigator.mediaSession.setPositionState({ duration: audio.duration, position: Math.min(audio.currentTime, audio.duration), playbackRate: audio.playbackRate || 1 }); } catch (e) {}
   }
 };
-audio.onplay = audio.onpause = setIcon;
+function setState(s) { if ("mediaSession" in navigator) { try { navigator.mediaSession.playbackState = s; } catch (e) {} } }
+audio.onplay = () => { setIcon(); setState("playing"); };
+audio.onpause = () => { setIcon(); setState("paused"); };
 audio.onended = () => step(1);
 if ("mediaSession" in navigator) {
   try {
-    navigator.mediaSession.setActionHandler("play", () => audio.play());
+    navigator.mediaSession.setActionHandler("play", () => { audio.play().catch(() => {}); });
     navigator.mediaSession.setActionHandler("pause", () => audio.pause());
     navigator.mediaSession.setActionHandler("previoustrack", () => step(-1));
     navigator.mediaSession.setActionHandler("nexttrack", () => step(1));
+    navigator.mediaSession.setActionHandler("seekto", d => { if (d && isFinite(d.seekTime)) audio.currentTime = d.seekTime; });
+    navigator.mediaSession.setActionHandler("stop", () => audio.pause());
   } catch (e) {}
 }
 function saveList(l) { if (db && !l.mem && l.id > 0) { try { lstore("readwrite").put(l); } catch (e) { db = null; } } }
@@ -525,12 +533,12 @@ $("#delList").onclick = () => {
 };
 
 let toastT = null;
-function toast(msg) {
+function toast(msg, ms) {
   const t = $("#toast");
   t.textContent = msg;
   t.hidden = false;
   clearTimeout(toastT);
-  toastT = setTimeout(() => { t.hidden = true; }, 1800);
+  toastT = setTimeout(() => { t.hidden = true; }, ms || 1800);
 }
 function addNext(id) { upNext.push(id); toast("Aggiunta in coda"); renderQueue(); }
 function closeMenu() { $("#sheet").hidden = true; }
