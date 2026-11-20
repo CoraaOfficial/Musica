@@ -758,7 +758,7 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 14;
+const APP_VERSION = 15;
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -1383,18 +1383,8 @@ function startTrackImmediate(id, urlToPlay, fromQueue, label) {
   $("#player").classList.add("show");
   applyCoverColor(s.cover);
 
-  if ("mediaSession" in navigator) {
-    try {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: s.name,
-        artist: s.artist || "Artista locale",
-        artwork: s.cover ? [{ src: s.cover, sizes: "512x512" }] : []
-      });
-      navigator.mediaSession.playbackState = "playing";
-    } catch (e) {}
-  }
-
   renderAll();
+  syncMediaSession();
   prefetchNextTrack();
 }
 
@@ -1447,9 +1437,18 @@ function step(dir) {
     play(nextId);
     return;
   }
-  if (audio.currentTime > 3 || !queue.length) { audio.currentTime = 0; return; }
+
+  if (!queue.length) {
+    audio.currentTime = 0;
+    return;
+  }
+  if (audio.currentTime > 4) {
+    audio.currentTime = 0;
+    return;
+  }
   const idx = queue.indexOf(ctxId);
-  play(queue[(idx - 1 + queue.length) % queue.length]);
+  const prevIdx = idx >= 0 ? (idx - 1 + queue.length) % queue.length : 0;
+  play(queue[prevIdx]);
 }
 
 function shuffleArray(arr, keepFirstId) {
@@ -1738,18 +1737,16 @@ const syncIcons = () => {
   $("#miniPpIcon").innerHTML = ico;
   $("#fpPpIcon").innerHTML = ico;
 };
-audio.onplay = () => { syncIcons(); keepStop(); prefetchNextTrack(); };
-audio.onpause = () => { syncIcons(); if (!audio.ended) keepStart(); };
+audio.onplay = () => { syncIcons(); keepStop(); syncMediaSession(); prefetchNextTrack(); };
+audio.onpause = () => { syncIcons(); syncMediaSession(); if (!audio.ended) keepStart(); };
 audio.onended = () => step(1);
 
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible" && curId && audio.src) {
     if (audio.paused && !audio.ended) {
       forcePlayAudio();
-    } else if ("mediaSession" in navigator) {
-      try {
-        navigator.mediaSession.playbackState = "playing";
-      } catch (e) {}
+    } else {
+      syncMediaSession();
     }
   }
 });
@@ -1813,16 +1810,35 @@ $("#keepOn").onchange = e => { localStorage.setItem("keep", e.target.checked ? "
 function keepStart() { if (keepOn() && silentUrl) { ka.play().catch(()=>{}); clearTimeout(keepTimer); keepTimer = setTimeout(keepStop, 300000); } }
 function keepStop() { clearTimeout(keepTimer); ka.pause(); }
 
-if ("mediaSession" in navigator) {
+function syncMediaSession() {
+  if (!("mediaSession" in navigator)) return;
   try {
+    const s = songs.find(x => x.id === curId);
+    if (s) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: s.name,
+        artist: s.artist || "Artista locale",
+        artwork: s.cover ? [{ src: s.cover, sizes: "512x512" }] : []
+      });
+    }
+    navigator.mediaSession.playbackState = audio.paused ? "paused" : "playing";
     navigator.mediaSession.setActionHandler("play", () => forcePlayAudio());
     navigator.mediaSession.setActionHandler("pause", () => audio.pause());
     navigator.mediaSession.setActionHandler("previoustrack", () => step(-1));
     navigator.mediaSession.setActionHandler("nexttrack", () => step(1));
     navigator.mediaSession.setActionHandler("seekforward", null);
     navigator.mediaSession.setActionHandler("seekbackward", null);
+    if (typeof navigator.mediaSession.setPositionState === "function" && isFinite(audio.duration) && audio.duration > 0) {
+      navigator.mediaSession.setPositionState({
+        duration: audio.duration,
+        playbackRate: audio.playbackRate || 1,
+        position: Math.min(audio.currentTime || 0, audio.duration)
+      });
+    }
   } catch (e) {}
 }
+
+syncMediaSession();
 
 let toastT = null;
 function toast(msg) {
