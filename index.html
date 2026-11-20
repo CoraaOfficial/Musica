@@ -758,7 +758,7 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 12;
+const APP_VERSION = 13;
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -770,6 +770,7 @@ let db = null, songs = [], lists = [], curId = null, audioUrl = null;
 let tempId = -1, queue = [], upNext = [], ctxId = null, ctxName = "Tutti i brani";
 let openPlId = null, pickingPl = false, shuffle = false, repeatMode = 0; // 0: off, 1: all, 2: one
 let silentUrl = null;
+let prefetchedNext = { id: null, url: null, blob: null };
 
 /* --- ESTRATTORE ARCHIVI .ZIP NATIVO (STORE + DEFLATE) --- */
 function guessAudioMime(name) {
@@ -800,7 +801,6 @@ async function extractAudioFromZip(zipFile) {
   const bytes = new Uint8Array(buf);
   const view = new DataView(buf);
 
-  // Cerca End of Central Directory (PK\x05\x06) negli ultimi 65557 byte
   let eocdOffset = -1;
   const searchStart = Math.max(0, bytes.length - 65557);
   for (let i = bytes.length - 22; i >= searchStart; i--) {
@@ -837,7 +837,6 @@ async function extractAudioFromZip(zipFile) {
     if (isDir || isMacJunk || !mime || !cleanName) continue;
     if (uncompSize > 120 * 1048576) continue;
 
-    // Legge Local File Header (PK\x03\x04) per trovare l'inizio dei dati compressi
     if (localHeaderOffset + 30 > bytes.length || view.getUint32(localHeaderOffset, true) !== 0x04034b50) continue;
     const lNameLen = view.getUint16(localHeaderOffset + 26, true);
     const lExtraLen = view.getUint16(localHeaderOffset + 28, true);
@@ -1001,59 +1000,30 @@ function saveList(l) {
   }
 }
 
-/* --- IMPORTAZIONE MP3 E ARCHIVI .ZIP --- */
+/* --- IMPORTAZIONE MP3 E ARCHIVI .ZIP (UN BRANO ALLA VOLTA PER RISPARMIARE RAM) --- */
 async function addFiles(pickedFiles) {
   const strip = name => name.replace(/\.[^.]+$/, "");
-  const candidates = [];
+  let savedCount = 0;
+  let skippedDup = 0;
 
-  for (const f of pickedFiles) {
-    const isZip = f.name.toLowerCase().endsWith(".zip") || f.type.includes("zip");
-    if (isZip) {
-      toast("Estrazione file .ZIP in corso...");
-      try {
-        const entries = await extractAudioFromZip(f);
-        if (!entries.length) {
-          toast("Nessun file audio trovato nello .ZIP");
-        } else {
-          for (const ent of entries) {
-            candidates.push({
-              orig: strip(ent.fileName),
-              size: ent.buffer.byteLength,
-              type: ent.mime,
-              buffer: ent.buffer
-            });
-          }
-        }
-      } catch (err) {
-        toast("Errore lettura .ZIP: " + (err.message || "file non valido"));
-      }
-    } else {
-      if (f.size > 120 * 1048576) { toast("File troppo grande: " + f.name); continue; }
-      try {
-        const buffer = await f.arrayBuffer();
-        candidates.push({
-          orig: strip(f.name),
-          size: f.size,
-          type: f.type || "audio/mpeg",
-          buffer
-        });
-      } catch (e) {}
+  const processAudioItem = async (origName, size, mime, buffer) => {
+    if (size > 120 * 1048576) {
+      toast("File troppo grande: " + origName);
+      return;
     }
-  }
+    const alreadyExists = songs.some(
+      s => (s.orig || s.name) === origName && s.size === size
+    );
+    if (alreadyExists) {
+      skippedDup++;
+      return;
+    }
 
-  const fresh = candidates.filter(c => !songs.some(s => (s.orig || s.name) === c.orig && s.size === c.size));
-  if (!fresh.length) {
-    if (candidates.length) toast("Brani già presenti in libreria");
-    return;
-  }
-
-  let savedCount = 0, bad = 0;
-  for (const item of fresh) {
-    const id3 = parseID3(item.buffer);
+    const id3 = parseID3(buffer);
     let guessArtist = id3.artist || "Artista locale";
-    let guessTitle = id3.title || item.orig;
-    if (!id3.title && item.orig.includes(" - ")) {
-      const parts = item.orig.split(" - ");
+    let guessTitle = id3.title || origName;
+    if (!id3.title && origName.includes(" - ")) {
+      const parts = origName.split(" - ");
       guessArtist = parts[0].trim();
       guessTitle = parts.slice(1).join(" - ").trim();
     }
@@ -1063,25 +1033,61 @@ async function addFiles(pickedFiles) {
       artist: guessArtist,
       cover: id3.cover || null,
       liked: false,
-      orig: item.orig,
-      size: item.size,
-      type: item.type,
+      orig: origName,
+      size,
+      type: mime,
       addedAt: Date.now()
     };
 
-    if (await writeSongToDb(rec, item.buffer)) {
+    if (await writeSongToDb(rec, buffer)) {
+      songs.push(rec);
       savedCount++;
     } else {
       rec.id = tempId--;
-      rec.mem = new Blob([item.buffer], { type: rec.type });
-      bad++;
+      rec.mem = new Blob([buffer], { type: rec.type });
+      songs.push(rec);
     }
-    songs.push(rec);
+  };
+
+  for (const f of pickedFiles) {
+    const isZip = f.name.toLowerCase().endsWith(".zip") || f.type.includes("zip");
+    if (isZip) {
+      toast("Estrazione .ZIP in corso...");
+      try {
+        const entries = await extractAudioFromZip(f);
+        if (!entries.length) {
+          toast("Nessun file audio trovato nello .ZIP");
+          continue;
+        }
+        for (const ent of entries) {
+          await processAudioItem(
+            strip(ent.fileName),
+            ent.buffer.byteLength,
+            ent.mime,
+            ent.buffer
+          );
+          ent.buffer = null;
+        }
+      } catch (err) {
+        toast("Errore .ZIP: " + (err.message || "archivio non valido"));
+      }
+    } else {
+      if (f.size > 120 * 1048576) { toast("File troppo grande: " + f.name); continue; }
+      try {
+        const buffer = await f.arrayBuffer();
+        await processAudioItem(strip(f.name), f.size, f.type || "audio/mpeg", buffer);
+      } catch (e) {
+        toast("Errore lettura file: " + f.name);
+      }
+    }
   }
 
   renderAll();
-  if (bad) toast(`${bad} brani solo in RAM`);
-  else if (savedCount) toast(`${savedCount} ${savedCount === 1 ? "brano importato" : "brani importati"}`);
+  if (savedCount) {
+    toast(`${savedCount} ${savedCount === 1 ? "brano importato" : "brani importati"}`);
+  } else if (skippedDup) {
+    toast("Brani già presenti in libreria");
+  }
 }
 
 async function writeSongToDb(rec, buf) {
@@ -1298,31 +1304,61 @@ function renderLib() {
   items.forEach(s => ul.append(makeTrackRow(s, ids, pl.name)));
 }
 
-/* --- RIPRODUZIONE AUDIO --- */
-async function play(id, newQueue = null, fromQueue = false, label = null) {
-  if (newQueue) {
-    queue = shuffle ? shuffleArray([...newQueue], id) : [...newQueue];
+/* --- RIPRODUZIONE AUDIO CON PREFETCH PER BACKGROUND --- */
+function getNextTrackId() {
+  if (repeatMode === 2 && curId) return curId;
+  if (upNext.length) return upNext[0];
+  if (!queue.length) return null;
+  const idx = queue.indexOf(ctxId);
+  if (idx + 1 >= queue.length && repeatMode === 0) return null;
+  return queue[(idx + 1) % queue.length];
+}
+
+async function prefetchNextTrack() {
+  const nextId = getNextTrackId();
+  if (!nextId || nextId === curId) return;
+  if (prefetchedNext.id === nextId && prefetchedNext.url) return;
+
+  const s = songs.find(x => x.id === nextId);
+  if (!s) return;
+
+  let blob = s.mem || null;
+  if (!blob && db) {
+    try {
+      const buf = await rq(dstore("readonly").get(nextId));
+      if (buf) blob = new Blob([buf], { type: s.type || "audio/mpeg" });
+    } catch (e) {}
   }
+  if (!blob) return;
+
+  if (prefetchedNext.url && prefetchedNext.url !== audioUrl) {
+    URL.revokeObjectURL(prefetchedNext.url);
+  }
+  prefetchedNext = {
+    id: nextId,
+    blob,
+    url: URL.createObjectURL(blob)
+  };
+}
+
+function startTrackImmediate(id, urlToPlay, fromQueue, label) {
   if (label) ctxName = label;
   if (!fromQueue) ctxId = id;
 
   const s = songs.find(x => x.id === id);
   if (!s) return;
 
-  let blob = s.mem;
-  if (!blob && db) {
-    try {
-      const buf = await rq(dstore("readonly").get(id));
-      if (buf) blob = new Blob([buf], { type: s.type || "audio/mpeg" });
-    } catch (e) {}
-  }
-  if (!blob) { toast("Impossibile leggere il file audio"); return; }
-
+  const prevUrl = audioUrl;
   curId = id;
-  if (audioUrl) URL.revokeObjectURL(audioUrl);
-  audioUrl = URL.createObjectURL(blob);
+  audioUrl = urlToPlay;
   audio.src = audioUrl;
-  audio.play().catch(() => toast("Tocca play per avviare"));
+  const playPromise = audio.play();
+  if (playPromise && playPromise.catch) {
+    playPromise.catch(() => {});
+  }
+  if (prevUrl && prevUrl !== audioUrl) {
+    setTimeout(() => URL.revokeObjectURL(prevUrl), 1500);
+  }
 
   $("#player").classList.add("show");
   applyCoverColor(s.cover);
@@ -1334,15 +1370,53 @@ async function play(id, newQueue = null, fromQueue = false, label = null) {
         artist: s.artist || "Artista locale",
         artwork: s.cover ? [{ src: s.cover, sizes: "512x512" }] : []
       });
+      navigator.mediaSession.playbackState = "playing";
     } catch (e) {}
   }
+
   renderAll();
+  prefetchNextTrack();
+}
+
+async function play(id, newQueue = null, fromQueue = false, label = null) {
+  if (newQueue) {
+    queue = shuffle ? shuffleArray([...newQueue], id) : [...newQueue];
+  }
+  const s = songs.find(x => x.id === id);
+  if (!s) return;
+
+  // Avvio sincrono immediato se già pre-caricato in memoria (fondamentale in background su iOS)
+  if (prefetchedNext.id === id && prefetchedNext.url) {
+    const readyUrl = prefetchedNext.url;
+    prefetchedNext = { id: null, url: null, blob: null };
+    startTrackImmediate(id, readyUrl, fromQueue, label);
+    return;
+  }
+
+  let blob = s.mem || null;
+  if (!blob && db) {
+    try {
+      const buf = await rq(dstore("readonly").get(id));
+      if (buf) blob = new Blob([buf], { type: s.type || "audio/mpeg" });
+    } catch (e) {}
+  }
+  if (!blob) { toast("Impossibile leggere il file audio"); return; }
+
+  startTrackImmediate(id, URL.createObjectURL(blob), fromQueue, label);
 }
 
 function step(dir) {
   if (dir > 0) {
-    if (repeatMode === 2 && curId) { audio.currentTime = 0; audio.play(); return; }
-    if (upNext.length) { play(upNext.shift(), null, true); return; }
+    if (repeatMode === 2 && curId) {
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
+      return;
+    }
+    if (upNext.length) {
+      const nextId = upNext.shift();
+      play(nextId, null, true);
+      return;
+    }
     if (!queue.length) return;
     const idx = queue.indexOf(ctxId);
     if (idx + 1 >= queue.length && repeatMode === 0) {
@@ -1350,7 +1424,8 @@ function step(dir) {
       audio.currentTime = 0;
       return;
     }
-    play(queue[(idx + 1) % queue.length]);
+    const nextId = queue[(idx + 1) % queue.length];
+    play(nextId);
     return;
   }
   if (audio.currentTime > 3 || !queue.length) { audio.currentTime = 0; return; }
@@ -1404,7 +1479,7 @@ function renderQueue() {
       const del = document.createElement("button");
       del.className = "icon-btn";
       del.textContent = "✕";
-      del.onclick = () => { upNext.splice(i, 1); renderQueue(); };
+      del.onclick = () => { upNext.splice(i, 1); renderQueue(); prefetchNextTrack(); };
       li.append(del);
       qUl.append(li);
     });
@@ -1441,7 +1516,7 @@ function openSongMenu(s, ctxIds, ctxLabel) {
     box.append(b);
   };
 
-  addAct("Metti in coda", () => { upNext.push(s.id); renderQueue(); toast("Aggiunto in coda"); });
+  addAct("Metti in coda", () => { upNext.push(s.id); renderQueue(); prefetchNextTrack(); toast("Aggiunto in coda"); });
   addAct("Modifica titolo, artista o copertina", () => openEditDialog(s));
   lists.forEach(pl => {
     const inPl = pl.songIds.includes(s.id);
@@ -1526,7 +1601,7 @@ function bindRowGestures(el, s, ctxIds, ctxLabel) {
   });
   el.addEventListener("pointerup", () => {
     clearTimeout(timer);
-    if (dx > 65) { upNext.push(s.id); renderQueue(); toast("Aggiunto in coda"); }
+    if (dx > 65) { upNext.push(s.id); renderQueue(); prefetchNextTrack(); toast("Aggiunto in coda"); }
     el.style.transform = "";
   });
   el.addEventListener("pointercancel", () => { clearTimeout(timer); el.style.transform = ""; });
@@ -1592,12 +1667,14 @@ $("#plShuffleBtn").onclick = $("#shufBtn").onclick = () => {
   if (shuffle && queue.length && curId) queue = shuffleArray(queue, curId);
   renderPlayerUI();
   renderQueue();
+  prefetchNextTrack();
   toast(shuffle ? "Riproduzione casuale attivata" : "Riproduzione casuale disattivata");
 };
 
 $("#repBtn").onclick = () => {
   repeatMode = (repeatMode + 1) % 3;
   renderPlayerUI();
+  prefetchNextTrack();
   toast(["Ripetizione disattivata", "Ripeti playlist", "Ripeti brano corrente"][repeatMode]);
 };
 
@@ -1620,7 +1697,7 @@ const togglePlay = () => { if (audio.src) { audio.paused ? audio.play() : audio.
 $("#miniPpBtn").onclick = $("#ppBtn").onclick = togglePlay;
 $("#prevBtn").onclick = () => step(-1);
 $("#nextBtn").onclick = () => step(1);
-$("#qClearBtn").onclick = () => { upNext = []; renderQueue(); };
+$("#qClearBtn").onclick = () => { upNext = []; renderQueue(); prefetchNextTrack(); };
 $("#sheet").onclick = e => { if (e.target.id === "sheet") $("#sheet").hidden = true; };
 
 $("#seek").oninput = e => {
@@ -1642,7 +1719,7 @@ const syncIcons = () => {
   $("#miniPpIcon").innerHTML = ico;
   $("#fpPpIcon").innerHTML = ico;
 };
-audio.onplay = () => { syncIcons(); keepStop(); };
+audio.onplay = () => { syncIcons(); keepStop(); prefetchNextTrack(); };
 audio.onpause = () => { syncIcons(); if (!audio.ended) keepStart(); };
 audio.onended = () => step(1);
 
