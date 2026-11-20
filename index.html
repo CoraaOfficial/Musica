@@ -754,7 +754,7 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 17;
+const APP_VERSION = 18;
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -767,6 +767,7 @@ let tempId = -1, queue = [], upNext = [], ctxId = null, ctxName = "Tutti i brani
 let openPlId = null, pickingPl = false, shuffle = false, repeatMode = 0; // 0: off, 1: all, 2: one
 let prefetchedNext = { id: null, url: null, blob: null };
 let resumingAfterPause = false;
+let userPaused = false;
 
 /* --- ESTRATTORE ARCHIVI .ZIP NATIVO (STORE + DEFLATE) --- */
 function guessAudioMime(name) {
@@ -1345,6 +1346,7 @@ async function prefetchNextTrack() {
 }
 
 function tryPlayElement() {
+  userPaused = false;
   if ("mediaSession" in navigator) {
     try { navigator.mediaSession.playbackState = "playing"; } catch (e) {}
   }
@@ -1352,7 +1354,7 @@ function tryPlayElement() {
   if (p && p.catch) {
     p.catch(() => {
       setTimeout(() => {
-        if (curId && audio.paused && !audio.ended) {
+        if (curId && audio.paused && !audio.ended && !userPaused) {
           audio.play().catch(() => {});
         }
       }, 250);
@@ -1362,6 +1364,7 @@ function tryPlayElement() {
 
 async function forcePlayAudio() {
   if (!curId && !audio.src) return;
+  userPaused = false;
   if (!audio.src && curId) {
     await play(curId);
     return;
@@ -1389,9 +1392,6 @@ async function forcePlayAudio() {
           }
         }, { once: true });
       }
-      if (oldUrl && oldUrl !== freshUrl) {
-        setTimeout(() => URL.revokeObjectURL(oldUrl), 10000);
-      }
       tryPlayElement();
       setTimeout(() => { resumingAfterPause = false; }, 1200);
       if (oldUrl && oldUrl !== freshUrl) {
@@ -1404,6 +1404,11 @@ async function forcePlayAudio() {
   tryPlayElement();
 }
 
+function pauseAudio() {
+  userPaused = true;
+  audio.pause();
+}
+
 function startTrackImmediate(id, urlToPlay, fromQueue, label) {
   if (label) ctxName = label;
   if (!fromQueue) ctxId = id;
@@ -1414,6 +1419,7 @@ function startTrackImmediate(id, urlToPlay, fromQueue, label) {
   const prevUrl = audioUrl;
   curId = id;
   audioUrl = urlToPlay;
+  userPaused = false;
 
   audio.pause();
   audio.src = audioUrl;
@@ -1467,7 +1473,7 @@ function step(dir) {
     if (!queue.length) return;
     const idx = queue.indexOf(ctxId);
     if (idx + 1 >= queue.length && repeatMode === 0) {
-      audio.pause();
+      pauseAudio();
       audio.currentTime = 0;
       return;
     }
@@ -1630,7 +1636,7 @@ function openEditDialog(s) {
 
 function deleteSong(id) {
   if (db) { try { store("readwrite").delete(id); dstore("readwrite").delete(id); } catch (e) {} }
-  if (id === curId) { audio.pause(); curId = null; $("#player").classList.remove("show", "open"); }
+  if (id === curId) { pauseAudio(); curId = null; $("#player").classList.remove("show", "open"); }
   songs = songs.filter(s => s.id !== id);
   queue = queue.filter(x => x !== id);
   upNext = upNext.filter(x => x !== id);
@@ -1748,7 +1754,7 @@ $("#miniLikeBtn").onclick = $("#fpLikeBtn").onclick = () => {
   renderAll();
 };
 
-const togglePlay = () => { if (audio.src || curId) { audio.paused ? forcePlayAudio() : audio.pause(); } };
+const togglePlay = () => { if (audio.src || curId) { audio.paused ? forcePlayAudio() : pauseAudio(); } };
 $("#miniPpBtn").onclick = $("#ppBtn").onclick = togglePlay;
 $("#prevBtn").onclick = () => step(-1);
 $("#nextBtn").onclick = () => step(1);
@@ -1774,17 +1780,14 @@ const syncIcons = () => {
   $("#miniPpIcon").innerHTML = ico;
   $("#fpPpIcon").innerHTML = ico;
 };
-audio.onplay = () => { syncIcons(); syncMediaSession(); prefetchNextTrack(); };
+audio.onplay = () => { userPaused = false; syncIcons(); syncMediaSession(); prefetchNextTrack(); };
 audio.onpause = () => { if (resumingAfterPause) return; syncIcons(); syncMediaSession(); };
 audio.onended = () => step(1);
 
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && curId && audio.src) {
-    if (audio.paused && !audio.ended) {
-      forcePlayAudio();
-    } else {
-      syncMediaSession();
-    }
+  if (document.visibilityState === "visible" && curId) {
+    syncIcons();
+    syncMediaSession();
   }
 });
 
@@ -1846,7 +1849,7 @@ function syncMediaSession() {
     }
     navigator.mediaSession.playbackState = audio.paused ? "paused" : "playing";
     navigator.mediaSession.setActionHandler("play", () => { forcePlayAudio(); });
-    navigator.mediaSession.setActionHandler("pause", () => { audio.pause(); });
+    navigator.mediaSession.setActionHandler("pause", () => { pauseAudio(); });
     navigator.mediaSession.setActionHandler("previoustrack", () => { step(-1); });
     navigator.mediaSession.setActionHandler("nexttrack", () => { step(1); });
     navigator.mediaSession.setActionHandler("seekforward", null);
