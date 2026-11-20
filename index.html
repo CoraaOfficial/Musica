@@ -749,12 +749,12 @@ input[type=file] { display: none; }
 <input type="file" id="fileInput" accept="audio/*,.mp3,.m4a,.wav,.ogg,.aac,.flac,.zip,application/zip,application/x-zip-compressed" multiple>
 <input type="file" id="coverInput" accept="image/*">
 <input type="file" id="impFile" accept=".json,application/json">
-<audio id="a" preload="metadata" x-webkit-airplay="allow"></audio>
+<audio id="a" preload="auto" x-webkit-airplay="allow"></audio>
 
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 16;
+const APP_VERSION = 17;
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -766,6 +766,7 @@ let db = null, songs = [], lists = [], curId = null, audioUrl = null;
 let tempId = -1, queue = [], upNext = [], ctxId = null, ctxName = "Tutti i brani";
 let openPlId = null, pickingPl = false, shuffle = false, repeatMode = 0; // 0: off, 1: all, 2: one
 let prefetchedNext = { id: null, url: null, blob: null };
+let resumingAfterPause = false;
 
 /* --- ESTRATTORE ARCHIVI .ZIP NATIVO (STORE + DEFLATE) --- */
 function guessAudioMime(name) {
@@ -1299,7 +1300,7 @@ function renderLib() {
   items.forEach(s => ul.append(makeTrackRow(s, ids, pl.name)));
 }
 
-/* --- RIPRODUZIONE AUDIO CON PREFETCH PER BACKGROUND --- */
+/* --- RIPRODUZIONE AUDIO CON PREFETCH E RIPRESA DOPO PAUSA LUNGA --- */
 function getNextTrackId() {
   if (repeatMode === 2 && curId) return curId;
   if (upNext.length) return upNext[0];
@@ -1309,21 +1310,28 @@ function getNextTrackId() {
   return queue[(idx + 1) % queue.length];
 }
 
+async function getSongBlob(id) {
+  const s = songs.find(x => x.id === id);
+  if (!s) return null;
+  if (s.mem) return s.mem;
+  if (!db) {
+    try { db = await openDb(); } catch (e) {}
+  }
+  if (db) {
+    try {
+      const buf = await rq(dstore("readonly").get(id));
+      if (buf) return new Blob([buf], { type: s.type || "audio/mpeg" });
+    } catch (e) {}
+  }
+  return null;
+}
+
 async function prefetchNextTrack() {
   const nextId = getNextTrackId();
   if (!nextId || nextId === curId) return;
   if (prefetchedNext.id === nextId && prefetchedNext.url) return;
 
-  const s = songs.find(x => x.id === nextId);
-  if (!s) return;
-
-  let blob = s.mem || null;
-  if (!blob && db) {
-    try {
-      const buf = await rq(dstore("readonly").get(nextId));
-      if (buf) blob = new Blob([buf], { type: s.type || "audio/mpeg" });
-    } catch (e) {}
-  }
+  const blob = await getSongBlob(nextId);
   if (!blob) return;
 
   if (prefetchedNext.url && prefetchedNext.url !== audioUrl) {
@@ -1336,28 +1344,9 @@ async function prefetchNextTrack() {
   };
 }
 
-function forcePlayAudio() {
-  if (!curId && !audio.src) return;
-  if (!audio.src && curId) {
-    play(curId);
-    return;
-  }
-  if (audio.error && curId) {
-    const savedTime = audio.currentTime || 0;
-    play(curId).then(() => {
-      if (savedTime > 0 && isFinite(audio.duration)) {
-        try { audio.currentTime = savedTime; } catch (e) {}
-      }
-    });
-    return;
-  }
-  if (audio.readyState === 0 && audio.src) {
-    try { audio.load(); } catch (e) {}
-  }
+function tryPlayElement() {
   if ("mediaSession" in navigator) {
-    try {
-      navigator.mediaSession.playbackState = "playing";
-    } catch (e) {}
+    try { navigator.mediaSession.playbackState = "playing"; } catch (e) {}
   }
   const p = audio.play();
   if (p && p.catch) {
@@ -1369,6 +1358,50 @@ function forcePlayAudio() {
       }, 250);
     });
   }
+}
+
+async function forcePlayAudio() {
+  if (!curId && !audio.src) return;
+  if (!audio.src && curId) {
+    await play(curId);
+    return;
+  }
+
+  syncMediaSession();
+
+  const savedPos = audio.currentTime || 0;
+  const needsFreshSrc = Boolean(audio.error) || audio.readyState < 2 || !audio.src;
+
+  if (needsFreshSrc && curId) {
+    const blob = await getSongBlob(curId);
+    if (blob) {
+      resumingAfterPause = true;
+      const oldUrl = audioUrl;
+      const freshUrl = URL.createObjectURL(blob);
+      audioUrl = freshUrl;
+      audio.src = freshUrl;
+      audio.load();
+      if (savedPos > 0) {
+        audio.addEventListener("loadedmetadata", function onMeta() {
+          audio.removeEventListener("loadedmetadata", onMeta);
+          if (savedPos < audio.duration) {
+            try { audio.currentTime = savedPos; } catch (e) {}
+          }
+        }, { once: true });
+      }
+      if (oldUrl && oldUrl !== freshUrl) {
+        setTimeout(() => URL.revokeObjectURL(oldUrl), 10000);
+      }
+      tryPlayElement();
+      setTimeout(() => { resumingAfterPause = false; }, 1200);
+      if (oldUrl && oldUrl !== freshUrl) {
+        setTimeout(() => URL.revokeObjectURL(oldUrl), 10000);
+      }
+      return;
+    }
+  }
+
+  tryPlayElement();
 }
 
 function startTrackImmediate(id, urlToPlay, fromQueue, label) {
@@ -1385,7 +1418,7 @@ function startTrackImmediate(id, urlToPlay, fromQueue, label) {
   audio.pause();
   audio.src = audioUrl;
   audio.load();
-  forcePlayAudio();
+  tryPlayElement();
 
   if (prevUrl && prevUrl !== audioUrl) {
     setTimeout(() => URL.revokeObjectURL(prevUrl), 10000);
@@ -1413,13 +1446,7 @@ async function play(id, newQueue = null, fromQueue = false, label = null) {
     return;
   }
 
-  let blob = s.mem || null;
-  if (!blob && db) {
-    try {
-      const buf = await rq(dstore("readonly").get(id));
-      if (buf) blob = new Blob([buf], { type: s.type || "audio/mpeg" });
-    } catch (e) {}
-  }
+  const blob = await getSongBlob(id);
   if (!blob) { toast("Impossibile leggere il file audio"); return; }
 
   startTrackImmediate(id, URL.createObjectURL(blob), fromQueue, label);
@@ -1429,7 +1456,7 @@ function step(dir) {
   if (dir > 0) {
     if (repeatMode === 2 && curId) {
       audio.currentTime = 0;
-      forcePlayAudio();
+      tryPlayElement();
       return;
     }
     if (upNext.length) {
@@ -1748,7 +1775,7 @@ const syncIcons = () => {
   $("#fpPpIcon").innerHTML = ico;
 };
 audio.onplay = () => { syncIcons(); syncMediaSession(); prefetchNextTrack(); };
-audio.onpause = () => { syncIcons(); syncMediaSession(); };
+audio.onpause = () => { if (resumingAfterPause) return; syncIcons(); syncMediaSession(); };
 audio.onended = () => step(1);
 
 document.addEventListener("visibilitychange", () => {
@@ -1818,10 +1845,10 @@ function syncMediaSession() {
       });
     }
     navigator.mediaSession.playbackState = audio.paused ? "paused" : "playing";
-    navigator.mediaSession.setActionHandler("play", () => forcePlayAudio());
-    navigator.mediaSession.setActionHandler("pause", () => audio.pause());
-    navigator.mediaSession.setActionHandler("previoustrack", () => step(-1));
-    navigator.mediaSession.setActionHandler("nexttrack", () => step(1));
+    navigator.mediaSession.setActionHandler("play", () => { forcePlayAudio(); });
+    navigator.mediaSession.setActionHandler("pause", () => { audio.pause(); });
+    navigator.mediaSession.setActionHandler("previoustrack", () => { step(-1); });
+    navigator.mediaSession.setActionHandler("nexttrack", () => { step(1); });
     navigator.mediaSession.setActionHandler("seekforward", null);
     navigator.mediaSession.setActionHandler("seekbackward", null);
     if (typeof navigator.mediaSession.setPositionState === "function" && isFinite(audio.duration) && audio.duration > 0) {
