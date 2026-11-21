@@ -754,7 +754,7 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 21;
+const APP_VERSION = 22;
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -767,6 +767,7 @@ let tempId = -1, queue = [], upNext = [], ctxId = null, ctxName = "Tutti i brani
 let openPlId = null, pickingPl = false, shuffle = false, repeatMode = 0; // 0: off, 1: all, 2: one
 let prefetchedNext = { id: null, url: null, blob: null };
 let userPaused = false;
+let lastKnownPos = 0;
 
 /* --- ESTRATTORE ARCHIVI .ZIP NATIVO (STORE + DEFLATE) --- */
 function guessAudioMime(name) {
@@ -1300,7 +1301,7 @@ function renderLib() {
   items.forEach(s => ul.append(makeTrackRow(s, ids, pl.name)));
 }
 
-/* --- RIPRODUZIONE AUDIO CON PREFETCH E RIPRESA STABILE SU iOS --- */
+/* --- RIPRODUZIONE AUDIO CON RIPRISTINO CANALE SU iOS --- */
 function getNextTrackId() {
   if (repeatMode === 2 && curId) return curId;
   if (upNext.length) return upNext[0];
@@ -1379,16 +1380,39 @@ async function forcePlayAudio() {
     await play(curId);
     return;
   }
-  if (audio.error && curId) {
-    await play(curId);
-    return;
-  }
+
+  const targetPos = Math.max(audio.currentTime || 0, lastKnownPos || 0);
   syncMediaSession();
+
+  if (curId && (audio.error || audio.readyState < 2 || !audio.src)) {
+    const blob = await getSongBlob(curId);
+    if (blob) {
+      const oldUrl = audioUrl;
+      const freshUrl = URL.createObjectURL(blob);
+      audioUrl = freshUrl;
+      audio.src = freshUrl;
+      audio.load();
+      audio.addEventListener("loadedmetadata", () => {
+        if (targetPos > 0 && isFinite(audio.duration) && targetPos < audio.duration) {
+          try { audio.currentTime = targetPos; } catch (e) {}
+        }
+        tryPlayElement();
+      }, { once: true });
+      if (oldUrl && oldUrl !== freshUrl) {
+        setTimeout(() => URL.revokeObjectURL(oldUrl), 10000);
+      }
+      return;
+    }
+  }
+
   tryPlayElement();
 }
 
 function pauseAudio() {
   userPaused = true;
+  if (isFinite(audio.currentTime) && audio.currentTime > 0) {
+    lastKnownPos = audio.currentTime;
+  }
   audio.pause();
 }
 
@@ -1403,6 +1427,7 @@ function startTrackImmediate(id, urlToPlay, fromQueue, label) {
   curId = id;
   audioUrl = urlToPlay;
   userPaused = false;
+  lastKnownPos = 0;
 
   audio.pause();
   audio.src = audioUrl;
@@ -1445,6 +1470,7 @@ function step(dir) {
   if (dir > 0) {
     if (repeatMode === 2 && curId) {
       audio.currentTime = 0;
+      lastKnownPos = 0;
       tryPlayElement();
       return;
     }
@@ -1458,6 +1484,7 @@ function step(dir) {
     if (idx + 1 >= queue.length && repeatMode === 0) {
       pauseAudio();
       audio.currentTime = 0;
+      lastKnownPos = 0;
       return;
     }
     const nextId = queue[(idx + 1) % queue.length];
@@ -1467,10 +1494,12 @@ function step(dir) {
 
   if (!queue.length) {
     audio.currentTime = 0;
+    lastKnownPos = 0;
     return;
   }
   if (audio.currentTime > 4) {
     audio.currentTime = 0;
+    lastKnownPos = 0;
     return;
   }
   const idx = queue.indexOf(ctxId);
@@ -1746,12 +1775,17 @@ $("#sheet").onclick = e => { if (e.target.id === "sheet") $("#sheet").hidden = t
 
 $("#seek").oninput = e => {
   if (isFinite(audio.duration)) {
-    audio.currentTime = (e.target.value / 1000) * audio.duration;
+    const newPos = (e.target.value / 1000) * audio.duration;
+    audio.currentTime = newPos;
+    lastKnownPos = newPos;
     safeSetPositionState();
   }
 };
 
 audio.ontimeupdate = () => {
+  if (isFinite(audio.currentTime) && audio.currentTime > 0) {
+    lastKnownPos = audio.currentTime;
+  }
   $("#curTime").textContent = fmt(audio.currentTime);
   $("#durTime").textContent = fmt(audio.duration);
   if (isFinite(audio.duration) && audio.duration > 0) {
@@ -1772,8 +1806,14 @@ const syncIcons = () => {
   $("#fpPpIcon").innerHTML = ico;
 };
 audio.onplay = () => { userPaused = false; syncIcons(); syncMediaSession(); prefetchNextTrack(); };
-audio.onpause = () => { syncIcons(); syncMediaSession(); };
-audio.onended = () => step(1);
+audio.onpause = () => {
+  if (isFinite(audio.currentTime) && audio.currentTime > 0) {
+    lastKnownPos = audio.currentTime;
+  }
+  syncIcons();
+  syncMediaSession();
+};
+audio.onended = () => { lastKnownPos = 0; step(1); };
 
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible" && curId) {
