@@ -754,7 +754,8 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 22;
+const APP_VERSION = 23;
+const SESSION_KEY = "musica_locale_state_v23";
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -768,6 +769,33 @@ let openPlId = null, pickingPl = false, shuffle = false, repeatMode = 0; // 0: o
 let prefetchedNext = { id: null, url: null, blob: null };
 let userPaused = false;
 let lastKnownPos = 0;
+
+function persistPlaybackState() {
+  try {
+    const pos = isFinite(audio.currentTime) && audio.currentTime > 0 ? audio.currentTime : lastKnownPos;
+    const payload = {
+      curId,
+      queue,
+      upNext,
+      ctxId,
+      ctxName,
+      shuffle,
+      repeatMode,
+      pos,
+      wasPlaying: Boolean(curId && !audio.paused && !userPaused)
+    };
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(payload));
+  } catch (e) {}
+}
+
+function readPlaybackState() {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
 
 /* --- ESTRATTORE ARCHIVI .ZIP NATIVO (STORE + DEFLATE) --- */
 function guessAudioMime(name) {
@@ -981,6 +1009,40 @@ async function load() {
     lists = await rq(lstore("readonly").getAll()) || [];
   } catch (e) { db = null; songs = []; lists = []; }
   renderAll();
+
+  const saved = readPlaybackState();
+  if (saved && saved.curId && songs.some(s => s.id === saved.curId)) {
+    queue = Array.isArray(saved.queue) ? saved.queue : [];
+    upNext = Array.isArray(saved.upNext) ? saved.upNext : [];
+    ctxId = saved.ctxId || saved.curId;
+    ctxName = saved.ctxName || "Tutti i brani";
+    shuffle = Boolean(saved.shuffle);
+    repeatMode = Number(saved.repeatMode) || 0;
+    lastKnownPos = Number(saved.pos) || 0;
+    curId = saved.curId;
+
+    const currentSong = songs.find(s => s.id === curId);
+    $("#player").classList.add("show");
+    if (currentSong) applyCoverColor(currentSong.cover);
+    renderAll();
+
+    const blob = await getSongBlob(curId);
+    if (blob) {
+      const restoredUrl = URL.createObjectURL(blob);
+      audioUrl = restoredUrl;
+      audio.src = restoredUrl;
+      audio.load();
+      audio.addEventListener("loadedmetadata", () => {
+        if (lastKnownPos > 0 && isFinite(audio.duration) && lastKnownPos < audio.duration) {
+          try { audio.currentTime = lastKnownPos; } catch (e) {}
+        }
+        syncMediaSession();
+        if (saved.wasPlaying) {
+          tryPlayElement();
+        }
+      }, { once: true });
+    }
+  }
 }
 
 function saveSongMeta(s) {
@@ -1414,6 +1476,7 @@ function pauseAudio() {
     lastKnownPos = audio.currentTime;
   }
   audio.pause();
+  persistPlaybackState();
 }
 
 function startTrackImmediate(id, urlToPlay, fromQueue, label) {
@@ -1444,6 +1507,7 @@ function startTrackImmediate(id, urlToPlay, fromQueue, label) {
   renderAll();
   syncMediaSession();
   prefetchNextTrack();
+  persistPlaybackState();
 }
 
 async function play(id, newQueue = null, fromQueue = false, label = null) {
@@ -1553,7 +1617,7 @@ function renderQueue() {
       const del = document.createElement("button");
       del.className = "icon-btn";
       del.textContent = "✕";
-      del.onclick = () => { upNext.splice(i, 1); renderQueue(); prefetchNextTrack(); };
+      del.onclick = () => { upNext.splice(i, 1); renderQueue(); prefetchNextTrack(); persistPlaybackState(); };
       li.append(del);
       qUl.append(li);
     });
@@ -1590,7 +1654,7 @@ function openSongMenu(s, ctxIds, ctxLabel) {
     box.append(b);
   };
 
-  addAct("Metti in coda", () => { upNext.push(s.id); renderQueue(); prefetchNextTrack(); toast("Aggiunto in coda"); });
+  addAct("Metti in coda", () => { upNext.push(s.id); renderQueue(); prefetchNextTrack(); persistPlaybackState(); toast("Aggiunto in coda"); });
   addAct("Modifica titolo, artista o copertina", () => openEditDialog(s));
   lists.forEach(pl => {
     const inPl = pl.songIds.includes(s.id);
@@ -1639,7 +1703,10 @@ function openEditDialog(s) {
     s.artist = $("#dlgArtist").value.trim() || "Artista locale";
     s.cover = pendingCover;
     saveSongMeta(s);
-    if (s.id === curId) applyCoverColor(s.cover);
+    if (s.id === curId) {
+      applyCoverColor(s.cover);
+      syncMediaSession();
+    }
     $("#dlg").hidden = true;
     renderAll();
     toast("Brano aggiornato");
@@ -1659,6 +1726,7 @@ function deleteSong(id) {
     }
   });
   renderAll();
+  persistPlaybackState();
   toast("Brano eliminato");
 }
 
@@ -1675,7 +1743,7 @@ function bindRowGestures(el, s, ctxIds, ctxLabel) {
   });
   el.addEventListener("pointerup", () => {
     clearTimeout(timer);
-    if (dx > 65) { upNext.push(s.id); renderQueue(); prefetchNextTrack(); toast("Aggiunto in coda"); }
+    if (dx > 65) { upNext.push(s.id); renderQueue(); prefetchNextTrack(); persistPlaybackState(); toast("Aggiunto in coda"); }
     el.style.transform = "";
   });
   el.addEventListener("pointercancel", () => { clearTimeout(timer); el.style.transform = ""; });
@@ -1741,6 +1809,7 @@ $("#plShuffleBtn").onclick = $("#shufBtn").onclick = () => {
   renderPlayerUI();
   renderQueue();
   prefetchNextTrack();
+  persistPlaybackState();
   toast(shuffle ? "Riproduzione casuale attivata" : "Riproduzione casuale disattivata");
 };
 
@@ -1748,6 +1817,7 @@ $("#repBtn").onclick = () => {
   repeatMode = (repeatMode + 1) % 3;
   renderPlayerUI();
   prefetchNextTrack();
+  persistPlaybackState();
   toast(["Ripetizione disattivata", "Ripeti playlist", "Ripeti brano corrente"][repeatMode]);
 };
 
@@ -1770,7 +1840,7 @@ const togglePlay = () => { if (audio.src || curId) { audio.paused ? forcePlayAud
 $("#miniPpBtn").onclick = $("#ppBtn").onclick = togglePlay;
 $("#prevBtn").onclick = () => step(-1);
 $("#nextBtn").onclick = () => step(1);
-$("#qClearBtn").onclick = () => { upNext = []; renderQueue(); prefetchNextTrack(); };
+$("#qClearBtn").onclick = () => { upNext = []; renderQueue(); prefetchNextTrack(); persistPlaybackState(); };
 $("#sheet").onclick = e => { if (e.target.id === "sheet") $("#sheet").hidden = true; };
 
 $("#seek").oninput = e => {
@@ -1779,6 +1849,7 @@ $("#seek").oninput = e => {
     audio.currentTime = newPos;
     lastKnownPos = newPos;
     safeSetPositionState();
+    persistPlaybackState();
   }
 };
 
@@ -1805,21 +1876,33 @@ const syncIcons = () => {
   $("#miniPpIcon").innerHTML = ico;
   $("#fpPpIcon").innerHTML = ico;
 };
-audio.onplay = () => { userPaused = false; syncIcons(); syncMediaSession(); prefetchNextTrack(); };
+audio.onplay = () => {
+  userPaused = false;
+  syncIcons();
+  syncMediaSession();
+  prefetchNextTrack();
+  persistPlaybackState();
+};
 audio.onpause = () => {
   if (isFinite(audio.currentTime) && audio.currentTime > 0) {
     lastKnownPos = audio.currentTime;
   }
   syncIcons();
   syncMediaSession();
+  persistPlaybackState();
 };
 audio.onended = () => { lastKnownPos = 0; step(1); };
 
 document.addEventListener("visibilitychange", () => {
+  persistPlaybackState();
   if (document.visibilityState === "visible" && curId) {
     syncIcons();
     syncMediaSession();
   }
+});
+
+window.addEventListener("pagehide", () => {
+  persistPlaybackState();
 });
 
 $("#airBtn").onclick = () => {
@@ -1883,6 +1966,19 @@ function syncMediaSession() {
     navigator.mediaSession.setActionHandler("pause", () => { pauseAudio(); });
     navigator.mediaSession.setActionHandler("previoustrack", () => { step(-1); });
     navigator.mediaSession.setActionHandler("nexttrack", () => { step(1); });
+    if (typeof navigator.mediaSession.setActionHandler === "function") {
+      try {
+        navigator.mediaSession.setActionHandler("seekto", details => {
+          if (details && typeof details.seekTime === "number" && isFinite(audio.duration)) {
+            const target = Math.max(0, Math.min(details.seekTime, audio.duration));
+            audio.currentTime = target;
+            lastKnownPos = target;
+            safeSetPositionState();
+            persistPlaybackState();
+          }
+        });
+      } catch (e) {}
+    }
     navigator.mediaSession.setActionHandler("seekforward", null);
     navigator.mediaSession.setActionHandler("seekbackward", null);
     safeSetPositionState();
