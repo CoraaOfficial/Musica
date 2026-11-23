@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#121212">
+<meta name="theme-color" content="#0d0d0d">
 <title>Spotify Locale</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon.png">
@@ -13,19 +13,19 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #121212;
-  --surface: #181818;
-  --surface-hi: #282828;
-  --surface-press: #333333;
+  --bg: #0d0d0d;
+  --surface: #171717;
+  --surface-hi: #242424;
+  --surface-press: #303030;
   --text: #FFFFFF;
-  --muted: #B3B3B3;
+  --muted: #A7A7A7;
   --sub: #727272;
   --accent: #1DB954;
   --accent-hi: #1ED760;
   --on-accent: #000000;
   --danger: #E91429;
   --line: rgba(255,255,255,0.08);
-  --np-color: #2a3b32;
+  --np-color: #26382f;
   color-scheme: dark;
 }
 
@@ -43,7 +43,7 @@ html, body {
 
 body {
   padding-top: env(safe-area-inset-top, 12px);
-  padding-bottom: calc(145px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px));
 }
 
 main { max-width: 640px; margin: 0 auto; padding: 12px 16px; }
@@ -53,70 +53,96 @@ main { max-width: 640px; margin: 0 auto; padding: 12px 16px; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 8px 0 16px;
+  gap: 12px;
+  margin: 6px 0 18px;
 }
-h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.03em; margin: 0; }
-h2 { font-size: 19px; font-weight: 700; letter-spacing: -0.02em; margin: 22px 0 12px; }
+.top-title-group { display: flex; flex-direction: column; }
+.top-sub { font-size: 12px; font-weight: 600; color: var(--muted); margin-top: 2px; }
+h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.03em; margin: 0; }
+h2 { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; margin: 22px 0 12px; }
 
 .pill-btn {
   background: var(--surface-hi);
   color: var(--text);
-  border: 0;
+  border: 1px solid rgba(255,255,255,0.06);
   border-radius: 999px;
-  padding: 8px 14px;
-  font: 600 13px inherit;
+  padding: 9px 15px;
+  font: 700 13px inherit;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  transition: transform .1s, background .15s;
+  transition: transform .12s, background .15s;
 }
-.pill-btn:active { transform: scale(0.96); background: var(--surface-press); }
-.pill-btn.primary { background: var(--accent); color: var(--on-accent); font-weight: 700; }
+.pill-btn:active { transform: scale(0.95); background: var(--surface-press); }
+.pill-btn.primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: transparent;
+  box-shadow: 0 4px 16px rgba(29, 185, 84, 0.25);
+}
 
 /* Griglia rapida Home stile Spotify */
 .quick-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 18px;
+  gap: 10px;
+  margin-bottom: 20px;
 }
 .q-card {
   display: flex;
   align-items: center;
   background: var(--surface-hi);
-  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 8px;
   overflow: hidden;
-  border: 0;
   padding: 0;
   color: var(--text);
   text-align: left;
   cursor: pointer;
-  height: 54px;
-  transition: background .15s;
+  height: 56px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.28);
+  transition: transform .12s, background .15s;
 }
-.q-card:active { background: var(--surface-press); }
+.q-card:active { transform: scale(0.98); background: var(--surface-press); }
 .q-card .q-art {
-  width: 54px;
-  height: 54px;
+  width: 56px;
+  height: 56px;
   flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #333;
-  object-fit: cover;
+  background: #2c2c2c;
+  overflow: hidden;
 }
+.q-card .q-art img { width: 100%; height: 100%; object-fit: cover; }
 .q-card .q-art.liked-grad {
-  background: linear-gradient(135deg, #450af5, #c4efd9);
+  background: linear-gradient(135deg, #4b15f5 0%, #8e7cf7 55%, #c4efd9 100%);
 }
 .q-card span {
   padding: 0 10px;
   font-size: 13px;
   font-weight: 700;
+  line-height: 1.25;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Mosaico 2x2 copertine per playlist */
+.collage-grid {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+.collage-grid img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 /* Lista Brani */
@@ -125,14 +151,14 @@ ul { list-style: none; margin: 0; padding: 0; }
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 4px;
-  border-radius: 8px;
+  padding: 8px 6px;
+  border-radius: 10px;
   transition: background .12s;
   touch-action: pan-y;
   user-select: none;
   -webkit-user-select: none;
 }
-.track-row:active { background: rgba(255,255,255,0.06); }
+.track-row:active { background: rgba(255,255,255,0.07); }
 .track-main {
   flex: 1;
   min-width: 0;
@@ -147,9 +173,9 @@ ul { list-style: none; margin: 0; padding: 0; }
   cursor: pointer;
 }
 .cover-sm {
-  width: 48px;
-  height: 48px;
-  border-radius: 4px;
+  width: 50px;
+  height: 50px;
+  border-radius: 6px;
   background: var(--surface-hi);
   flex: none;
   display: flex;
@@ -157,6 +183,7 @@ ul { list-style: none; margin: 0; padding: 0; }
   justify-content: center;
   overflow: hidden;
   position: relative;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
 }
 .cover-sm img { width: 100%; height: 100%; object-fit: cover; }
 .cover-sm svg { width: 22px; height: 22px; color: var(--muted); }
@@ -166,22 +193,22 @@ ul { list-style: none; margin: 0; padding: 0; }
 .eq-badge {
   position: absolute;
   inset: 0;
-  background: rgba(0,0,0,0.55);
+  background: rgba(0,0,0,0.58);
   display: none;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 2.5px;
 }
 .track-row.playing .eq-badge { display: flex; }
 .eq-bar { width: 3px; height: 12px; background: var(--accent); border-radius: 2px; animation: eq .8s infinite ease-in-out alternate; }
-.eq-bar:nth-child(2) { animation-delay: .2s; height: 16px; }
+.eq-bar:nth-child(2) { animation-delay: .2s; height: 17px; }
 .eq-bar:nth-child(3) { animation-delay: .4s; height: 9px; }
 @keyframes eq { 0% { transform: scaleY(0.3); } 100% { transform: scaleY(1); } }
 
 .t-info { flex: 1; min-width: 0; }
 .t-title {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -206,38 +233,76 @@ ul { list-style: none; margin: 0; padding: 0; }
   align-items: center;
   justify-content: center;
   border-radius: 50%;
+  position: relative;
+  transition: color .15s, background .15s, transform .1s;
 }
-.icon-btn:active { color: var(--text); background: rgba(255,255,255,0.1); }
-.icon-btn.liked { color: var(--accent); }
+.icon-btn:active { color: var(--text); background: rgba(255,255,255,0.1); transform: scale(0.92); }
+.icon-btn.liked,
+.icon-btn.active { color: var(--accent); }
+.icon-btn.active::after {
+  content: "";
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+}
 svg { width: 22px; height: 22px; fill: currentColor; }
 
-/* Barra di ricerca Spotify */
+/* Barra di ricerca moderna stile Instagram / Spotify */
 .search-box {
   position: sticky;
   top: 0;
-  background: var(--bg);
-  padding: 8px 0 12px;
+  background: rgba(13, 13, 13, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 6px 0 14px;
   z-index: 3;
 }
 .search-input-wrap {
   display: flex;
   align-items: center;
-  background: #FFFFFF;
-  color: #121212;
-  border-radius: 8px;
+  background: var(--surface-hi);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--text);
+  border-radius: 12px;
   padding: 0 12px;
   height: 44px;
+  transition: border-color .15s, background .15s;
 }
-.search-input-wrap svg { color: #121212; width: 20px; height: 20px; margin-right: 8px; }
+.search-input-wrap:focus-within {
+  border-color: rgba(255,255,255,0.28);
+  background: #2a2a2a;
+}
+.search-input-wrap svg { color: var(--muted); width: 20px; height: 20px; margin-right: 10px; flex: none; }
 .search-input-wrap input {
   flex: 1;
   border: 0;
   background: none;
   font: 600 15px inherit;
-  color: #121212;
+  color: var(--text);
   outline: none;
+  min-width: 0;
 }
-.search-input-wrap input::placeholder { color: #555; font-weight: 500; }
+.search-input-wrap input::placeholder { color: var(--muted); font-weight: 500; }
+.search-clear {
+  background: rgba(255,255,255,0.14);
+  border: 0;
+  color: var(--text);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex: none;
+}
 
 /* Header Playlist */
 .pl-hero {
@@ -248,29 +313,30 @@ svg { width: 22px; height: 22px; fill: currentColor; }
   padding: 10px 0 18px;
 }
 .pl-cover-lg {
-  width: 170px;
-  height: 170px;
-  border-radius: 8px;
+  width: 180px;
+  height: 180px;
+  border-radius: 12px;
   background: linear-gradient(135deg, #282828, #181818);
-  box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+  box-shadow: 0 16px 38px rgba(0,0,0,0.65);
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 16px;
   overflow: hidden;
 }
-.pl-cover-lg.liked-grad { background: linear-gradient(135deg, #450af5, #c4efd9); }
+.pl-cover-lg img { width: 100%; height: 100%; object-fit: cover; }
+.pl-cover-lg.liked-grad { background: linear-gradient(135deg, #4b15f5 0%, #8e7cf7 55%, #c4efd9 100%); }
 .pl-cover-lg svg { width: 64px; height: 64px; color: var(--muted); }
 .pl-actions {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  margin-top: 14px;
+  margin-top: 16px;
 }
 .play-fab {
-  width: 52px;
-  height: 52px;
+  width: 54px;
+  height: 54px;
   border-radius: 50%;
   background: var(--accent);
   color: var(--on-accent);
@@ -279,33 +345,35 @@ svg { width: 22px; height: 22px; fill: currentColor; }
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(29, 185, 84, 0.35);
+  box-shadow: 0 6px 18px rgba(29, 185, 84, 0.38);
+  transition: transform .12s, background .15s;
 }
-.play-fab:active { transform: scale(0.94); background: var(--accent-hi); }
+.play-fab:active { transform: scale(0.93); background: var(--accent-hi); }
 .play-fab svg { width: 26px; height: 26px; }
 
 /* Mini Player Flottante stile Spotify */
 #player {
   position: fixed;
-  left: 8px;
-  right: 8px;
-  bottom: calc(64px + env(safe-area-inset-bottom, 0px));
-  max-width: 624px;
+  left: 10px;
+  right: 10px;
+  bottom: calc(66px + env(safe-area-inset-bottom, 0px));
+  max-width: 620px;
   margin: 0 auto;
   background: var(--np-color);
-  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
   padding: 8px 10px;
   display: none;
   z-index: 10;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.65);
+  box-shadow: 0 10px 28px rgba(0,0,0,0.72);
   transition: background 0.4s ease;
 }
 #player.show { display: block; }
 #player::after {
   content: "";
   position: absolute;
-  left: 10px;
-  right: 10px;
+  left: 12px;
+  right: 12px;
   bottom: 0;
   height: 2px;
   background: rgba(255,255,255,0.2);
@@ -314,10 +382,10 @@ svg { width: 22px; height: 22px; fill: currentColor; }
 #player::before {
   content: "";
   position: absolute;
-  left: 10px;
+  left: 12px;
   bottom: 0;
   height: 2px;
-  width: calc(var(--p, 0%) * 0.96);
+  width: calc(var(--p, 0%) * 0.95);
   background: #FFFFFF;
   border-radius: 2px;
   z-index: 1;
@@ -325,9 +393,9 @@ svg { width: 22px; height: 22px; fill: currentColor; }
 
 .mini-row { display: flex; align-items: center; gap: 10px; }
 .mini-cover {
-  width: 40px;
-  height: 40px;
-  border-radius: 4px;
+  width: 42px;
+  height: 42px;
+  border-radius: 6px;
   background: rgba(0,0,0,0.3);
   flex: none;
   overflow: hidden;
@@ -337,7 +405,7 @@ svg { width: 22px; height: 22px; fill: currentColor; }
 }
 .mini-cover img { width: 100%; height: 100%; object-fit: cover; }
 .mini-meta { flex: 1; min-width: 0; cursor: pointer; }
-.mini-title { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mini-title { font-size: 13.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mini-artist { font-size: 12px; color: rgba(255,255,255,0.75); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mini-ctrls { display: flex; align-items: center; gap: 4px; }
 .mini-ctrls button { background: none; border: 0; color: #FFF; padding: 6px; cursor: pointer; display: flex; }
@@ -347,8 +415,9 @@ svg { width: 22px; height: 22px; fill: currentColor; }
   inset: 0;
   max-width: none;
   border-radius: 0;
+  border: 0;
   padding: calc(14px + env(safe-area-inset-top, 0px)) 24px calc(28px + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(180deg, var(--np-color) 0%, #121212 88%);
+  background: linear-gradient(180deg, var(--np-color) 0%, #0d0d0d 88%);
   overflow-y: auto;
   z-index: 30;
 }
@@ -357,15 +426,15 @@ svg { width: 22px; height: 22px; fill: currentColor; }
 #player.open #fullPlayer { display: flex; }
 
 .fp-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.fp-ctx { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.8); }
+.fp-ctx { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.82); }
 .fp-art-wrap {
   width: 100%;
   aspect-ratio: 1;
   max-width: 340px;
   margin: 8px auto 24px;
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--surface-hi);
-  box-shadow: 0 18px 45px rgba(0,0,0,0.65);
+  box-shadow: 0 20px 48px rgba(0,0,0,0.68);
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -422,52 +491,59 @@ input[type=range].sp-range::-webkit-slider-thumb {
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
 }
 .fp-play-btn svg { width: 30px; height: 30px; }
 
 .fp-footer { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.q-card-box { background: rgba(0,0,0,0.35); border-radius: 12px; padding: 14px; margin-top: 8px; }
+.q-card-box { background: rgba(0,0,0,0.35); border-radius: 14px; padding: 14px; margin-top: 8px; border: 1px solid rgba(255,255,255,0.06); }
 .q-head { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 700; margin-bottom: 8px; }
 
-/* Bottom Tab Bar Spotify */
+/* Bottom Tab Bar stile Instagram */
 #tabs {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(180deg, rgba(18,18,18,0.92) 0%, #000000 100%);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(13, 13, 13, 0.94);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   display: flex;
   padding-bottom: env(safe-area-inset-bottom, 0px);
   z-index: 15;
-  border-top: 1px solid rgba(255,255,255,0.06);
+  border-top: 1px solid rgba(255,255,255,0.09);
 }
 #tabs button {
   flex: 1;
-  height: 58px;
+  height: 56px;
   background: none;
   border: 0;
-  color: var(--muted);
-  font: 600 11px inherit;
+  color: #8e8e8e;
+  font: 500 10.5px inherit;
+  letter-spacing: 0.01em;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 3px;
   cursor: pointer;
+  transition: color .15s, transform .1s;
 }
-#tabs button.on { color: #FFFFFF; }
-#tabs svg { width: 24px; height: 24px; }
+#tabs button:active { transform: scale(0.9); }
+#tabs button.on { color: #FFFFFF; font-weight: 700; }
+#tabs svg { width: 25px; height: 25px; }
+#tabs button .ico-fill { display: none; }
+#tabs button.on .ico-out { display: none; }
+#tabs button.on .ico-fill { display: block; }
 
 /* Modals, Bottom Sheet, Toast */
-#sheet { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 40; display: flex; align-items: flex-end; }
+#sheet { position: fixed; inset: 0; background: rgba(0,0,0,0.72); z-index: 40; display: flex; align-items: flex-end; }
 #sheetBox {
   width: 100%;
   max-width: 640px;
   margin: 0 auto;
-  background: #282828;
-  border-radius: 16px 16px 0 0;
+  background: #242424;
+  border-radius: 18px 18px 0 0;
   padding: 12px 16px calc(20px + env(safe-area-inset-bottom, 0px));
   max-height: 75vh;
   overflow-y: auto;
@@ -489,13 +565,13 @@ input[type=range].sp-range::-webkit-slider-thumb {
 }
 #sheetBox button.act.danger { color: #ff5c5c; }
 
-#dlg { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 50; }
-.dlg-box { background: #282828; border-radius: 14px; padding: 20px; width: 100%; max-width: 400px; }
+#dlg { position: fixed; inset: 0; background: rgba(0,0,0,0.78); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 50; }
+.dlg-box { background: #242424; border-radius: 16px; padding: 20px; width: 100%; max-width: 400px; }
 .dlg-input {
   width: 100%;
-  background: #3E3E3E;
+  background: #363636;
   border: 0;
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 12px 14px;
   color: #FFF;
   font: 600 15px inherit;
@@ -515,16 +591,16 @@ input[type=range].sp-range::-webkit-slider-thumb {
   font-weight: 700;
   font-size: 13px;
   padding: 10px 18px;
-  border-radius: 8px;
+  border-radius: 999px;
   z-index: 60;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.45);
   white-space: nowrap;
 }
 
 .chk { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--muted); display: flex; align-items: center; justify-content: center; flex: none; }
 .chk.on { background: var(--accent); border-color: var(--accent); color: #000; }
 
-.settings-card { background: var(--surface); border-radius: 12px; padding: 14px; margin-top: 20px; font-size: 13px; color: var(--muted); }
+.settings-card { background: var(--surface); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 14px; margin-top: 20px; font-size: 13px; color: var(--muted); }
 .warn-box { background: rgba(233,20,41,0.15); border: 1px solid var(--danger); border-radius: 10px; padding: 12px; margin-bottom: 14px; font-size: 13px; }
 #diag { white-space: pre-wrap; font: 12px/1.5 ui-monospace, Menlo, monospace; background: #000; padding: 10px; border-radius: 8px; margin-top: 10px; color: #1DB954; }
 [hidden] { display: none !important; }
@@ -537,10 +613,13 @@ input[type=file] { display: none; }
   <!-- VISTA 1: HOME -->
   <section id="viewHome">
     <div class="top-bar">
-      <h1 id="greeting">Buonasera</h1>
+      <div class="top-title-group">
+        <h1 id="greeting">Buonasera</h1>
+        <span class="top-sub" id="homeSub">La tua musica offline</span>
+      </div>
       <button class="pill-btn primary" id="addBtnHome">
         <svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-        Importa MP3 / ZIP
+        Importa
       </button>
     </div>
 
@@ -553,7 +632,7 @@ input[type=file] { display: none; }
 
     <div style="display:flex;justify-content:space-between;align-items:center">
       <h2 style="margin-top:6px">Tutti i tuoi brani</h2>
-      <span id="songCount" style="font-size:12px;color:var(--muted)">0 brani</span>
+      <span id="songCount" style="font-size:12px;font-weight:600;color:var(--muted)">0 brani</span>
     </div>
 
     <ul id="homeSongList"></ul>
@@ -571,7 +650,8 @@ input[type=file] { display: none; }
     <div class="search-box">
       <div class="search-input-wrap">
         <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-        <input type="search" id="q" placeholder="Titolo o artista..." autocomplete="off">
+        <input type="search" id="q" placeholder="Brani o artisti..." autocomplete="off">
+        <button class="search-clear" id="qClear" hidden aria-label="Cancella">✕</button>
       </div>
     </div>
     <ul id="searchList"></ul>
@@ -712,19 +792,22 @@ input[type=file] { display: none; }
   </div>
 </div>
 
-<!-- BOTTOM TABS -->
+<!-- BOTTOM TABS STILE INSTAGRAM -->
 <nav id="tabs">
-  <button id="tabHome" class="on">
-    <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+  <button id="tabHome" class="on" aria-label="Home">
+    <svg class="ico-out" viewBox="0 0 24 24"><path d="M12 3.1 3 10.2V21h6.5v-6.5h5V21H21V10.2L12 3.1zm7 15.9h-2.5v-6.5h-9V19H5v-7.8l7-5.5 7 5.5V19z"/></svg>
+    <svg class="ico-fill" viewBox="0 0 24 24"><path d="M12 2.5 2.5 10v11.5h7v-6.5h5v6.5h7V10L12 2.5z"/></svg>
     Home
   </button>
-  <button id="tabSearch">
-    <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+  <button id="tabSearch" aria-label="Cerca">
+    <svg class="ico-out" viewBox="0 0 24 24"><path d="M11 3a8 8 0 1 0 4.9 14.32l4.39 4.39 1.41-1.41-4.39-4.39A8 8 0 0 0 11 3zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z"/></svg>
+    <svg class="ico-fill" viewBox="0 0 24 24"><path d="M11 2.5a8.5 8.5 0 1 0 5.18 15.24l4.04 4.04 1.77-1.77-4.04-4.04A8.5 8.5 0 0 0 11 2.5zm0 2.5a6 6 0 1 1 0 12 6 6 0 0 1 0-12z"/></svg>
     Cerca
   </button>
-  <button id="tabLib">
-    <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9h-4v4h-2v-4H9V9h4V5h2v4h4v2z"/></svg>
-    La tua libreria
+  <button id="tabLib" aria-label="Libreria">
+    <svg class="ico-out" viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12zm-7-2h2v-3h3V9h-3V6h-2v3h-3v2h3v3z"/></svg>
+    <svg class="ico-fill" viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9h-4v4h-2v-4H9V9h4V5h2v4h4v2z"/></svg>
+    Libreria
   </button>
 </nav>
 
@@ -754,8 +837,8 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 23;
-const SESSION_KEY = "musica_locale_state_v23";
+const APP_VERSION = 24;
+const SESSION_KEY = "musica_locale_state_v24";
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -954,7 +1037,7 @@ function parseID3(buffer) {
 /* Estrae colore dominante dalla copertina per sfumatura Spotify */
 function applyCoverColor(dataUrl) {
   if (!dataUrl) {
-    document.documentElement.style.setProperty("--np-color", "#2b3a32");
+    document.documentElement.style.setProperty("--np-color", "#26382f");
     return;
   }
   const img = new Image();
@@ -1172,6 +1255,15 @@ function coverHtml(cover, likedGrad = false) {
   return SVG_NOTE;
 }
 
+function playlistCoverHtml(validSongs) {
+  const covers = validSongs.map(s => s.cover).filter(Boolean);
+  const uniqueCovers = [...new Set(covers)];
+  if (uniqueCovers.length >= 4) {
+    return `<div class="collage-grid">${uniqueCovers.slice(0, 4).map(c => `<img src="${c}" alt="">`).join("")}</div>`;
+  }
+  return coverHtml(uniqueCovers[0] || null, false);
+}
+
 function makeTrackRow(s, ctxIds, ctxLabel, extraBtn = null) {
   const li = document.createElement("li");
   li.className = "track-row" + (s.id === curId ? " playing" : "");
@@ -1215,20 +1307,23 @@ function renderAll() {
   songs.sort((a, b) => a.name.localeCompare(b.name, "it"));
   $("#warn").hidden = !songs.some(s => s.mem);
   $("#songCount").textContent = `${songs.length} ${songs.length === 1 ? "brano" : "brani"}`;
+  $("#homeSub").textContent = songs.length
+    ? `${songs.length} ${songs.length === 1 ? "brano offline" : "brani offline"} • ${lists.length} playlist`
+    : "La tua musica offline";
   $("#emptyHome").hidden = songs.length > 0;
 
   const qg = $("#quickGrid");
   qg.innerHTML = "";
   const likedSongs = songs.filter(s => s.liked);
-  const addQuick = (label, cover, isLikedCard, onClick) => {
+  const addQuick = (label, artHtml, isLikedCard, onClick) => {
     const b = document.createElement("button");
     b.className = "q-card";
-    b.innerHTML = `<div class="q-art ${isLikedCard ? 'liked-grad' : ''}">${coverHtml(cover, isLikedCard)}</div><span>${esc(label)}</span>`;
+    b.innerHTML = `<div class="q-art ${isLikedCard ? 'liked-grad' : ''}">${artHtml}</div><span>${esc(label)}</span>`;
     b.onclick = onClick;
     qg.append(b);
   };
 
-  addQuick(`Brani che ti piacciono (${likedSongs.length})`, null, true, () => {
+  addQuick(`Brani che ti piacciono (${likedSongs.length})`, coverHtml(null, true), true, () => {
     setTab("lib");
     openPlId = "LIKED";
     pickingPl = false;
@@ -1236,8 +1331,8 @@ function renderAll() {
   });
 
   lists.slice(0, 3).forEach(pl => {
-    const first = pl.songIds.map(id => songs.find(s => s.id === id)).find(Boolean);
-    addQuick(pl.name, first ? first.cover : null, false, () => {
+    const valid = pl.songIds.map(id => songs.find(s => s.id === id)).filter(Boolean);
+    addQuick(pl.name, playlistCoverHtml(valid), false, () => {
       setTab("lib");
       openPlId = pl.id;
       pickingPl = false;
@@ -1257,7 +1352,9 @@ function renderAll() {
 }
 
 function renderSearch() {
-  const q = $("#q").value.trim().toLowerCase();
+  const raw = $("#q").value;
+  $("#qClear").hidden = !raw.length;
+  const q = raw.trim().toLowerCase();
   const ul = $("#searchList");
   ul.innerHTML = "";
   const filtered = songs.filter(s =>
@@ -1283,10 +1380,10 @@ function renderLib() {
     liLiked.className = "track-row";
     liLiked.innerHTML = `
       <button class="track-main">
-        <div class="cover-sm" style="background:linear-gradient(135deg,#450af5,#c4efd9)">${coverHtml(null, true)}</div>
+        <div class="cover-sm" style="background:linear-gradient(135deg,#4b15f5,#c4efd9)">${coverHtml(null, true)}</div>
         <div class="t-info">
           <div class="t-title">Brani che ti piacciono</div>
-          <div class="t-sub">Playlist • ${likedCount} brani</div>
+          <div class="t-sub">Playlist • ${likedCount} ${likedCount === 1 ? "brano" : "brani"}</div>
         </div>
       </button>
     `;
@@ -1295,15 +1392,14 @@ function renderLib() {
 
     lists.forEach(pl => {
       const validSongs = pl.songIds.map(id => songs.find(s => s.id === id)).filter(Boolean);
-      const cov = validSongs.find(s => s.cover)?.cover || null;
       const li = document.createElement("li");
       li.className = "track-row";
       li.innerHTML = `
         <button class="track-main">
-          <div class="cover-sm">${coverHtml(cov)}</div>
+          <div class="cover-sm">${playlistCoverHtml(validSongs)}</div>
           <div class="t-info">
             <div class="t-title">${esc(pl.name)}</div>
-            <div class="t-sub">Playlist • ${validSongs.length} brani</div>
+            <div class="t-sub">Playlist • ${validSongs.length} ${validSongs.length === 1 ? "brano" : "brani"}</div>
           </div>
         </button>
       `;
@@ -1351,11 +1447,11 @@ function renderLib() {
   $("#plAddSongsBtn").hidden = isLikedView;
   $("#plDelBtn").hidden = isLikedView;
   $("#plEmpty").hidden = items.length > 0;
+  $("#plShuffleBtn").classList.toggle("active", shuffle);
 
   const hero = $("#plHeroCover");
   hero.className = "pl-cover-lg" + (isLikedView ? " liked-grad" : "");
-  const firstCov = items.find(s => s.cover)?.cover || null;
-  hero.innerHTML = coverHtml(isLikedView ? null : firstCov, isLikedView);
+  hero.innerHTML = isLikedView ? coverHtml(null, true) : playlistCoverHtml(items);
 
   const ul = $("#plSongsList");
   ul.innerHTML = "";
@@ -1581,6 +1677,13 @@ function shuffleArray(arr, keepFirstId) {
 }
 
 function renderPlayerUI() {
+  $("#shufBtn").classList.toggle("active", shuffle);
+  $("#plShuffleBtn").classList.toggle("active", shuffle);
+  $("#repBtn").classList.toggle("active", repeatMode > 0);
+  $("#repIcon").innerHTML = repeatMode === 2
+    ? '<path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4zm-4-2V9h-1l-2 1v1h1.5v4H13z"/>'
+    : '<path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/>';
+
   const s = songs.find(x => x.id === curId);
   if (!s) return;
   $("#miniTitle").textContent = s.name;
@@ -1592,12 +1695,6 @@ function renderPlayerUI() {
   $("#fpArt").innerHTML = coverHtml(s.cover);
   $("#miniLikeBtn").innerHTML = s.liked ? SVG_HEART_IN : SVG_HEART_OUT;
   $("#fpLikeBtn").innerHTML = s.liked ? SVG_HEART_IN : SVG_HEART_OUT;
-  $("#shufBtn").classList.toggle("active", shuffle);
-  $("#plShuffleBtn").classList.toggle("active", shuffle);
-  $("#repBtn").classList.toggle("active", repeatMode > 0);
-  $("#repIcon").innerHTML = repeatMode === 2
-    ? '<path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4zm-4-2V9h-1l-2 1v1h1.5v4H13z"/>'
-    : '<path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/>';
 }
 
 function renderQueue() {
@@ -1768,6 +1865,7 @@ $("#tabLib").onclick = () => { openPlId = null; pickingPl = false; setTab("lib")
 $("#addBtnHome").onclick = $("#addBtnEmpty").onclick = () => $("#fileInput").click();
 $("#fileInput").onchange = e => { addFiles([...e.target.files]); e.target.value = ""; };
 $("#q").oninput = renderSearch;
+$("#qClear").onclick = () => { $("#q").value = ""; renderSearch(); $("#q").focus(); };
 
 $("#newPlBtn").onclick = () => { $("#newPlRow").hidden = !$("#newPlRow").hidden; $("#newPlName").focus(); };
 $("#createPlBtn").onclick = async () => {
