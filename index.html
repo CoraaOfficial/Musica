@@ -540,7 +540,7 @@ input[type=range].sp-range::-webkit-slider-thumb {
 }
 .time-row { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 6px; }
 
-.fp-controls { display: flex; align-items: center; justify-content: space-between; margin: 10px 0 22px; }
+.fp-controls { display: flex; align-items: center; justify-content: space-between; margin: 10px 0 14px; }
 .fp-controls button { background: none; border: 0; color: var(--text); cursor: pointer; padding: 8px; position: relative; }
 .fp-controls button.active { color: var(--accent); }
 .fp-controls button.active::after {
@@ -567,7 +567,7 @@ input[type=range].sp-range::-webkit-slider-thumb {
 }
 .fp-play-btn svg { width: 30px; height: 30px; }
 
-.fp-footer { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.fp-devices-row { display: flex; justify-content: flex-start; align-items: center; margin-bottom: 14px; }
 .q-card-box { background: rgba(0,0,0,0.35); border-radius: 14px; padding: 14px; margin-top: 8px; border: 1px solid rgba(255,255,255,0.06); }
 .q-head { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 700; margin-bottom: 8px; }
 
@@ -899,22 +899,22 @@ input[type=file] { display: none; }
       <button id="repBtn" aria-label="Ripeti"><svg id="repIcon" viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg></button>
     </div>
 
+    <div class="fp-devices-row">
+      <button class="pill-btn" id="airBtn">
+        <svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M6 22h12l-6-6-6 6zM21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4v-2H3V5h18v12h-4v2h4c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+        Dispositivi / AirPlay
+      </button>
+    </div>
+
     <div class="lyrics-card">
       <div class="lyrics-head">
-        <span class="lyrics-title">Testo sincronizzato</span>
+        <span class="lyrics-title">Testo</span>
         <div style="display:flex;gap:6px">
           <button class="pill-btn" id="autoFetchFpBtn" style="padding:5px 10px;font-size:11px">Auto LRC</button>
           <button class="pill-btn" id="editLyricsFpBtn" style="padding:5px 10px;font-size:11px">Modifica</button>
         </div>
       </div>
       <div class="lyrics-scroll" id="lyricsBox"></div>
-    </div>
-
-    <div class="fp-footer">
-      <button class="pill-btn" id="airBtn">
-        <svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M6 22h12l-6-6-6 6zM21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4v-2H3V5h18v12h-4v2h4c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
-        Dispositivi / AirPlay
-      </button>
     </div>
 
     <div class="q-card-box">
@@ -1007,8 +1007,8 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 26;
-const SESSION_KEY = "musica_locale_state_v26";
+const APP_VERSION = 27;
+const SESSION_KEY = "musica_locale_state_v27";
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -1159,7 +1159,10 @@ function updateActiveLyric(forceScroll = false) {
   });
 
   if (activeEl) {
-    const targetTop = activeEl.offsetTop - box.clientHeight * 0.35;
+    const boxRect = box.getBoundingClientRect();
+    const elRect = activeEl.getBoundingClientRect();
+    const relTop = (elRect.top - boxRect.top) + box.scrollTop;
+    const targetTop = relTop - (box.clientHeight * 0.32);
     box.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
   }
 }
@@ -2294,7 +2297,7 @@ function openSongMenu(s, ctxIds, ctxLabel) {
   };
 
   addAct("Metti in coda", () => { upNext.push(s.id); renderQueue(); prefetchNextTrack(); persistPlaybackState(); toast("Aggiunto in coda"); });
-  addAct("Testo sincronizzato (Auto LRC / Importa / Segna)", () => openLyricsEditor(s));
+  addAct("Testo (Auto LRC / Importa / Segna)", () => openLyricsEditor(s));
   addAct("Modifica titolo, artista o copertina", () => openEditDialog(s));
   lists.forEach(pl => {
     const inPl = pl.songIds.includes(s.id);
