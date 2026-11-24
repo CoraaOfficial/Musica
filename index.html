@@ -5,27 +5,27 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0d0d0d">
-<title>Spotify Locale</title>
+<meta name="theme-color" content="#000000">
+<title>Musica</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon.png">
 <meta name="apple-mobile-web-app-title" content="Musica">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #0d0d0d;
-  --surface: #171717;
-  --surface-hi: #242424;
-  --surface-press: #303030;
+  --bg: #000000;
+  --surface: #121214;
+  --surface-hi: #1c1c1e;
+  --surface-press: #2c2c2e;
   --text: #FFFFFF;
-  --muted: #A7A7A7;
-  --sub: #727272;
-  --accent: #1DB954;
-  --accent-hi: #1ED760;
-  --on-accent: #000000;
-  --danger: #E91429;
-  --line: rgba(255,255,255,0.08);
-  --np-color: #26382f;
+  --muted: #8e8e93;
+  --sub: #636366;
+  --accent: #fa243c;
+  --accent-hi: #ff375f;
+  --on-accent: #FFFFFF;
+  --danger: #ff453a;
+  --line: rgba(255,255,255,0.12);
+  --np-color: #2b1419;
   color-scheme: dark;
 }
 
@@ -35,38 +35,46 @@ html, body {
   padding: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Plus Jakarta Sans", sans-serif;
   font-size: 15px;
-  line-height: 1.4;
+  line-height: 1.38;
   overscroll-behavior-y: none;
 }
 
 body {
   padding-top: env(safe-area-inset-top, 12px);
-  padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(156px + env(safe-area-inset-bottom, 0px));
 }
 
-main { max-width: 640px; margin: 0 auto; padding: 12px 16px; }
+main { max-width: 640px; margin: 0 auto; padding: 10px 16px; }
 
-/* Header & Tipografia */
-.top-bar {
+/* Header stile Apple Music */
+.am-header {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 12px;
-  margin: 6px 0 18px;
+  padding: 10px 0 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  margin-bottom: 16px;
 }
-.top-title-group { display: flex; flex-direction: column; }
-.top-sub { font-size: 12px; font-weight: 600; color: var(--muted); margin-top: 2px; }
-h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.03em; margin: 0; }
-h2 { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; margin: 22px 0 12px; }
+.am-kicker {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  margin-bottom: 2px;
+}
+h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.035em; margin: 0; line-height: 1.08; }
+h2 { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; margin: 24px 0 12px; }
 
-.pill-btn {
-  background: var(--surface-hi);
-  color: var(--text);
-  border: 1px solid rgba(255,255,255,0.06);
+.am-btn {
+  background: rgba(250, 36, 60, 0.16);
+  color: var(--accent);
+  border: 0;
   border-radius: 999px;
-  padding: 9px 15px;
+  padding: 8px 14px;
   font: 700 13px inherit;
   cursor: pointer;
   display: inline-flex;
@@ -74,60 +82,68 @@ h2 { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; margin: 22px 0 
   gap: 6px;
   transition: transform .12s, background .15s;
 }
-.pill-btn:active { transform: scale(0.95); background: var(--surface-press); }
-.pill-btn.primary {
+.am-btn:active { transform: scale(0.95); background: rgba(250, 36, 60, 0.28); }
+.am-btn.solid {
   background: var(--accent);
   color: var(--on-accent);
-  border-color: transparent;
-  box-shadow: 0 4px 16px rgba(29, 185, 84, 0.25);
+  box-shadow: 0 6px 18px rgba(250, 36, 60, 0.35);
+}
+.am-btn.ghost {
+  background: var(--surface-hi);
+  color: var(--text);
 }
 
-/* Griglia rapida Home stile Spotify */
-.quick-grid {
+/* Griglia "Ascolta ora" / "Aggiunti di recente" stile Apple Music */
+.am-grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 20px;
+  gap: 16px 14px;
+  margin-bottom: 12px;
 }
-.q-card {
-  display: flex;
-  align-items: center;
-  background: var(--surface-hi);
-  border: 1px solid rgba(255,255,255,0.05);
-  border-radius: 8px;
-  overflow: hidden;
+.am-tile {
+  background: none;
+  border: 0;
   padding: 0;
-  color: var(--text);
   text-align: left;
+  color: var(--text);
   cursor: pointer;
-  height: 56px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.28);
-  transition: transform .12s, background .15s;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  transition: transform .14s ease;
 }
-.q-card:active { transform: scale(0.98); background: var(--surface-press); }
-.q-card .q-art {
-  width: 56px;
-  height: 56px;
-  flex: none;
+.am-tile:active { transform: scale(0.97); }
+.am-tile-art {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  background: var(--surface-hi);
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #2c2c2c;
-  overflow: hidden;
+  box-shadow: 0 8px 22px rgba(0,0,0,0.5);
+  position: relative;
 }
-.q-card .q-art img { width: 100%; height: 100%; object-fit: cover; }
-.q-card .q-art.liked-grad {
-  background: linear-gradient(135deg, #4b15f5 0%, #8e7cf7 55%, #c4efd9 100%);
+.am-tile-art.fav-grad {
+  background: linear-gradient(145deg, #ff2d55 0%, #fa243c 50%, #5e17eb 100%);
 }
-.q-card span {
-  padding: 0 10px;
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.25;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+.am-tile-art img { width: 100%; height: 100%; object-fit: cover; }
+.am-tile-art svg { width: 42px; height: 42px; color: rgba(255,255,255,0.75); }
+.am-tile-title {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
+}
+.am-tile-sub {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: -4px;
 }
 
 /* Mosaico 2x2 copertine per playlist */
@@ -138,27 +154,35 @@ h2 { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; margin: 22px 0 
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
 }
-.collage-grid img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
+.collage-grid img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-/* Lista Brani */
+/* Lista Brani stile Apple Music */
+.am-card-list {
+  background: var(--surface);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.06);
+}
 ul { list-style: none; margin: 0; padding: 0; }
 .track-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 6px;
-  border-radius: 10px;
+  padding: 9px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
   transition: background .12s;
   touch-action: pan-y;
   user-select: none;
   -webkit-user-select: none;
 }
-.track-row:active { background: rgba(255,255,255,0.07); }
+ul:not(.am-card-list) .track-row {
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  padding-left: 4px;
+  padding-right: 4px;
+}
+.track-row:last-child { border-bottom: 0; }
+.track-row:active { background: rgba(255,255,255,0.08); }
+
 .track-main {
   flex: 1;
   min-width: 0;
@@ -173,9 +197,9 @@ ul { list-style: none; margin: 0; padding: 0; }
   cursor: pointer;
 }
 .cover-sm {
-  width: 50px;
-  height: 50px;
-  border-radius: 6px;
+  width: 48px;
+  height: 48px;
+  border-radius: 7px;
   background: var(--surface-hi);
   flex: none;
   display: flex;
@@ -183,32 +207,32 @@ ul { list-style: none; margin: 0; padding: 0; }
   justify-content: center;
   overflow: hidden;
   position: relative;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.45);
 }
 .cover-sm img { width: 100%; height: 100%; object-fit: cover; }
-.cover-sm svg { width: 22px; height: 22px; color: var(--muted); }
+.cover-sm svg { width: 20px; height: 20px; color: var(--muted); }
 
-/* Equalizzatore animato quando in riproduzione */
+/* Equalizzatore Apple Music */
 .track-row.playing .t-title { color: var(--accent); }
 .eq-badge {
   position: absolute;
   inset: 0;
-  background: rgba(0,0,0,0.58);
+  background: rgba(0,0,0,0.55);
   display: none;
   align-items: center;
   justify-content: center;
   gap: 2.5px;
 }
 .track-row.playing .eq-badge { display: flex; }
-.eq-bar { width: 3px; height: 12px; background: var(--accent); border-radius: 2px; animation: eq .8s infinite ease-in-out alternate; }
-.eq-bar:nth-child(2) { animation-delay: .2s; height: 17px; }
-.eq-bar:nth-child(3) { animation-delay: .4s; height: 9px; }
+.eq-bar { width: 3px; height: 12px; background: var(--accent); border-radius: 2px; animation: eq .75s infinite ease-in-out alternate; }
+.eq-bar:nth-child(2) { animation-delay: .18s; height: 16px; }
+.eq-bar:nth-child(3) { animation-delay: .36s; height: 9px; }
 @keyframes eq { 0% { transform: scaleY(0.3); } 100% { transform: scaleY(1); } }
 
 .t-info { flex: 1; min-width: 0; }
 .t-title {
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -252,50 +276,45 @@ ul { list-style: none; margin: 0; padding: 0; }
 }
 svg { width: 22px; height: 22px; fill: currentColor; }
 
-/* Barra di ricerca moderna stile Instagram / Spotify */
+/* Barra di ricerca stile iOS / Apple Music */
 .search-box {
   position: sticky;
   top: 0;
-  background: rgba(13, 13, 13, 0.92);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  padding: 6px 0 14px;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  padding: 4px 0 14px;
   z-index: 3;
 }
 .search-input-wrap {
   display: flex;
   align-items: center;
   background: var(--surface-hi);
-  border: 1px solid rgba(255,255,255,0.08);
   color: var(--text);
-  border-radius: 12px;
-  padding: 0 12px;
-  height: 44px;
-  transition: border-color .15s, background .15s;
+  border-radius: 11px;
+  padding: 0 11px;
+  height: 38px;
 }
-.search-input-wrap:focus-within {
-  border-color: rgba(255,255,255,0.28);
-  background: #2a2a2a;
-}
-.search-input-wrap svg { color: var(--muted); width: 20px; height: 20px; margin-right: 10px; flex: none; }
+.search-input-wrap svg { color: var(--muted); width: 18px; height: 18px; margin-right: 8px; flex: none; }
 .search-input-wrap input {
   flex: 1;
   border: 0;
   background: none;
-  font: 600 15px inherit;
+  font: 500 15px inherit;
   color: var(--text);
   outline: none;
   min-width: 0;
+  caret-color: var(--accent);
 }
-.search-input-wrap input::placeholder { color: var(--muted); font-weight: 500; }
+.search-input-wrap input::placeholder { color: var(--muted); }
 .search-clear {
-  background: rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.2);
   border: 0;
-  color: var(--text);
-  width: 22px;
-  height: 22px;
+  color: #FFF;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -304,120 +323,128 @@ svg { width: 22px; height: 22px; fill: currentColor; }
   flex: none;
 }
 
-/* Header Playlist */
+/* Dettaglio Playlist / Raccolta Apple Music */
 .pl-hero {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 10px 0 18px;
+  padding: 6px 0 18px;
 }
 .pl-cover-lg {
-  width: 180px;
-  height: 180px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #282828, #181818);
-  box-shadow: 0 16px 38px rgba(0,0,0,0.65);
+  width: 190px;
+  height: 190px;
+  border-radius: 14px;
+  background: var(--surface-hi);
+  box-shadow: 0 18px 40px rgba(0,0,0,0.7);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   overflow: hidden;
 }
 .pl-cover-lg img { width: 100%; height: 100%; object-fit: cover; }
-.pl-cover-lg.liked-grad { background: linear-gradient(135deg, #4b15f5 0%, #8e7cf7 55%, #c4efd9 100%); }
-.pl-cover-lg svg { width: 64px; height: 64px; color: var(--muted); }
-.pl-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.pl-cover-lg.fav-grad { background: linear-gradient(145deg, #ff2d55 0%, #fa243c 50%, #5e17eb 100%); }
+.pl-cover-lg svg { width: 64px; height: 64px; color: rgba(255,255,255,0.8); }
+
+.pl-cta-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
   width: 100%;
-  margin-top: 16px;
+  margin: 14px 0 8px;
 }
-.play-fab {
-  width: 54px;
-  height: 54px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: var(--on-accent);
+.am-big-btn {
+  background: var(--surface-hi);
+  color: var(--accent);
   border: 0;
+  border-radius: 10px;
+  height: 44px;
+  font: 700 15px inherit;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 7px;
   cursor: pointer;
-  box-shadow: 0 6px 18px rgba(29, 185, 84, 0.38);
   transition: transform .12s, background .15s;
 }
-.play-fab:active { transform: scale(0.93); background: var(--accent-hi); }
-.play-fab svg { width: 26px; height: 26px; }
+.am-big-btn:active { transform: scale(0.97); background: var(--surface-press); }
+.am-big-btn.play-main {
+  background: var(--surface-hi);
+  color: var(--accent);
+}
+.am-big-btn svg { width: 18px; height: 18px; }
 
-/* Mini Player Flottante stile Spotify */
+/* Mini Player Apple Music */
 #player {
   position: fixed;
   left: 10px;
   right: 10px;
-  bottom: calc(66px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(64px + env(safe-area-inset-bottom, 0px));
   max-width: 620px;
   margin: 0 auto;
-  background: var(--np-color);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 12px;
-  padding: 8px 10px;
+  background: rgba(34, 34, 38, 0.88);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 14px;
+  padding: 7px 12px 9px;
   display: none;
   z-index: 10;
-  box-shadow: 0 10px 28px rgba(0,0,0,0.72);
-  transition: background 0.4s ease;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.75);
+  overflow: hidden;
 }
 #player.show { display: block; }
 #player::after {
   content: "";
   position: absolute;
-  left: 12px;
-  right: 12px;
+  left: 0;
+  right: 0;
   bottom: 0;
-  height: 2px;
-  background: rgba(255,255,255,0.2);
-  border-radius: 2px;
+  height: 2.5px;
+  background: rgba(255,255,255,0.14);
 }
 #player::before {
   content: "";
   position: absolute;
-  left: 12px;
+  left: 0;
   bottom: 0;
-  height: 2px;
-  width: calc(var(--p, 0%) * 0.95);
+  height: 2.5px;
+  width: var(--p, 0%);
   background: #FFFFFF;
-  border-radius: 2px;
   z-index: 1;
 }
 
-.mini-row { display: flex; align-items: center; gap: 10px; }
+.mini-row { display: flex; align-items: center; gap: 11px; }
 .mini-cover {
-  width: 42px;
-  height: 42px;
-  border-radius: 6px;
-  background: rgba(0,0,0,0.3);
+  width: 44px;
+  height: 44px;
+  border-radius: 7px;
+  background: rgba(255,255,255,0.08);
   flex: none;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.45);
 }
 .mini-cover img { width: 100%; height: 100%; object-fit: cover; }
 .mini-meta { flex: 1; min-width: 0; cursor: pointer; }
-.mini-title { font-size: 13.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mini-artist { font-size: 12px; color: rgba(255,255,255,0.75); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mini-title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mini-artist { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mini-ctrls { display: flex; align-items: center; gap: 4px; }
 .mini-ctrls button { background: none; border: 0; color: #FFF; padding: 6px; cursor: pointer; display: flex; }
 
-/* Fullscreen Now Playing */
+/* Fullscreen Now Playing Apple Music */
 #player.open {
   inset: 0;
   max-width: none;
   border-radius: 0;
   border: 0;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   padding: calc(14px + env(safe-area-inset-top, 0px)) 24px calc(28px + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(180deg, var(--np-color) 0%, #0d0d0d 88%);
+  background: linear-gradient(180deg, var(--np-color) 0%, #0d0d0f 65%, #000000 100%);
   overflow-y: auto;
   z-index: 30;
 }
@@ -425,51 +452,85 @@ svg { width: 22px; height: 22px; fill: currentColor; }
 #fullPlayer { display: none; flex-direction: column; min-height: 100%; max-width: 500px; margin: 0 auto; }
 #player.open #fullPlayer { display: flex; }
 
-.fp-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.fp-ctx { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.82); }
+.fp-grabber {
+  width: 38px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.32);
+  margin: 0 auto 12px;
+  cursor: pointer;
+}
+.fp-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.fp-ctx { font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.75); }
+
 .fp-art-wrap {
   width: 100%;
   aspect-ratio: 1;
-  max-width: 340px;
-  margin: 8px auto 24px;
-  border-radius: 14px;
+  max-width: 332px;
+  margin: 10px auto 26px;
+  border-radius: 16px;
   background: var(--surface-hi);
-  box-shadow: 0 20px 48px rgba(0,0,0,0.68);
+  box-shadow: 0 22px 50px rgba(0,0,0,0.75);
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
+  transform: scale(0.86);
+  transition: transform .35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow .35s ease;
+}
+#player.open.is-playing .fp-art-wrap {
+  transform: scale(1);
 }
 .fp-art-wrap img { width: 100%; height: 100%; object-fit: cover; }
 .fp-art-wrap svg { width: 90px; height: 90px; color: var(--muted); }
 
-.fp-meta-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
-.fp-title { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fp-artist { font-size: 15px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fp-meta-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.fp-title { font-size: 21px; font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fp-artist { font-size: 16px; font-weight: 500; color: rgba(255,255,255,0.68); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* Slider Seek Spotify */
-.seek-wrap { margin-bottom: 12px; }
+.fp-fav-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.14);
+  color: #FFF;
+  border: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex: none;
+}
+.fp-fav-circle.liked {
+  background: rgba(250, 36, 60, 0.24);
+  color: var(--accent);
+}
+.fp-fav-circle svg { width: 17px; height: 17px; }
+
+/* Slider Seek stile Apple Music */
+.seek-wrap { margin-bottom: 14px; }
 input[type=range].sp-range {
   -webkit-appearance: none;
   width: 100%;
-  height: 4px;
-  background: rgba(255,255,255,0.25);
-  border-radius: 2px;
+  height: 5px;
+  background: rgba(255,255,255,0.22);
+  border-radius: 999px;
   outline: none;
   margin: 0;
 }
 input[type=range].sp-range::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: #FFFFFF;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.45);
   cursor: pointer;
 }
-.time-row { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 6px; }
+.time-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.55); font-variant-numeric: tabular-nums; margin-top: 7px; }
 
-.fp-controls { display: flex; align-items: center; justify-content: space-between; margin: 10px 0 22px; }
-.fp-controls button { background: none; border: 0; color: var(--text); cursor: pointer; padding: 8px; position: relative; }
+.fp-controls { display: flex; align-items: center; justify-content: space-between; margin: 12px 0 24px; }
+.fp-controls button { background: none; border: 0; color: #FFF; cursor: pointer; padding: 8px; position: relative; }
 .fp-controls button.active { color: var(--accent); }
 .fp-controls button.active::after {
   content: "";
@@ -477,64 +538,58 @@ input[type=range].sp-range::-webkit-slider-thumb {
   bottom: 2px;
   left: 50%;
   transform: translateX(-50%);
-  width: 4px;
-  height: 4px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: var(--accent);
 }
 .fp-play-btn {
-  width: 66px !important;
-  height: 66px !important;
+  width: 68px !important;
+  height: 68px !important;
   border-radius: 50%;
-  background: #FFFFFF !important;
-  color: #000000 !important;
+  background: rgba(255,255,255,0.12) !important;
+  color: #FFFFFF !important;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
 }
-.fp-play-btn svg { width: 30px; height: 30px; }
+.fp-play-btn svg { width: 32px; height: 32px; }
 
-.fp-footer { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.q-card-box { background: rgba(0,0,0,0.35); border-radius: 14px; padding: 14px; margin-top: 8px; border: 1px solid rgba(255,255,255,0.06); }
-.q-head { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+.fp-footer { display: flex; justify-content: center; align-items: center; gap: 12px; margin-bottom: 18px; }
+.q-card-box { background: rgba(255,255,255,0.07); border-radius: 14px; padding: 14px; margin-top: 6px; border: 1px solid rgba(255,255,255,0.08); }
+.q-head { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 700; margin-bottom: 8px; color: rgba(255,255,255,0.85); }
 
-/* Bottom Tab Bar stile Instagram */
+/* Bottom Tab Bar stile Apple Music */
 #tabs {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(13, 13, 13, 0.94);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  background: rgba(22, 22, 24, 0.88);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
   display: flex;
   padding-bottom: env(safe-area-inset-bottom, 0px);
   z-index: 15;
-  border-top: 1px solid rgba(255,255,255,0.09);
+  border-top: 1px solid rgba(255,255,255,0.12);
 }
 #tabs button {
   flex: 1;
-  height: 56px;
+  height: 54px;
   background: none;
   border: 0;
-  color: #8e8e8e;
-  font: 500 10.5px inherit;
-  letter-spacing: 0.01em;
+  color: #8e8e93;
+  font: 600 10px inherit;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 3px;
   cursor: pointer;
-  transition: color .15s, transform .1s;
+  transition: color .15s;
 }
-#tabs button:active { transform: scale(0.9); }
-#tabs button.on { color: #FFFFFF; font-weight: 700; }
-#tabs svg { width: 25px; height: 25px; }
-#tabs button .ico-fill { display: none; }
-#tabs button.on .ico-out { display: none; }
-#tabs button.on .ico-fill { display: block; }
+#tabs button.on { color: var(--accent); }
+#tabs svg { width: 24px; height: 24px; }
 
 /* Modals, Bottom Sheet, Toast */
 #sheet { position: fixed; inset: 0; background: rgba(0,0,0,0.72); z-index: 40; display: flex; align-items: flex-end; }
@@ -542,13 +597,13 @@ input[type=range].sp-range::-webkit-slider-thumb {
   width: 100%;
   max-width: 640px;
   margin: 0 auto;
-  background: #242424;
+  background: #1c1c1e;
   border-radius: 18px 18px 0 0;
-  padding: 12px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+  padding: 12px 16px calc(22px + env(safe-area-inset-bottom, 0px));
   max-height: 75vh;
   overflow-y: auto;
 }
-.sheet-handle { width: 36px; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px; margin: 0 auto 14px; }
+.sheet-handle { width: 36px; height: 5px; background: rgba(255,255,255,0.28); border-radius: 999px; margin: 0 auto 14px; }
 .sheet-header { display: flex; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
 #sheetBox button.act {
   display: flex;
@@ -562,47 +617,50 @@ input[type=range].sp-range::-webkit-slider-thumb {
   padding: 14px 4px;
   cursor: pointer;
   text-align: left;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
 }
-#sheetBox button.act.danger { color: #ff5c5c; }
+#sheetBox button.act:last-child { border-bottom: 0; }
+#sheetBox button.act.danger { color: var(--danger); }
 
 #dlg { position: fixed; inset: 0; background: rgba(0,0,0,0.78); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 50; }
-.dlg-box { background: #242424; border-radius: 16px; padding: 20px; width: 100%; max-width: 400px; }
+.dlg-box { background: #1c1c1e; border-radius: 16px; padding: 20px; width: 100%; max-width: 400px; border: 1px solid rgba(255,255,255,0.1); }
 .dlg-input {
   width: 100%;
-  background: #363636;
+  background: #2c2c2e;
   border: 0;
   border-radius: 10px;
   padding: 12px 14px;
   color: #FFF;
-  font: 600 15px inherit;
+  font: 500 15px inherit;
   margin-bottom: 10px;
   outline: none;
 }
 .dlg-row { display: flex; gap: 10px; margin-top: 8px; }
-.dlg-row button { flex: 1; padding: 12px; border-radius: 999px; border: 0; font: 700 14px inherit; cursor: pointer; }
+.dlg-row button { flex: 1; padding: 12px; border-radius: 12px; border: 0; font: 700 14px inherit; cursor: pointer; }
 
 #toast {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(135px + env(safe-area-inset-bottom, 0px));
-  background: #FFFFFF;
-  color: #000000;
-  font-weight: 700;
+  bottom: calc(138px + env(safe-area-inset-bottom, 0px));
+  background: rgba(44, 44, 46, 0.96);
+  color: #FFFFFF;
+  border: 1px solid rgba(255,255,255,0.12);
+  font-weight: 600;
   font-size: 13px;
   padding: 10px 18px;
   border-radius: 999px;
   z-index: 60;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.55);
   white-space: nowrap;
 }
 
-.chk { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--muted); display: flex; align-items: center; justify-content: center; flex: none; }
-.chk.on { background: var(--accent); border-color: var(--accent); color: #000; }
+.chk { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--muted); display: flex; align-items: center; justify-content: center; flex: none; font-size: 12px; font-weight: 800; }
+.chk.on { background: var(--accent); border-color: var(--accent); color: #FFF; }
 
-.settings-card { background: var(--surface); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 14px; margin-top: 20px; font-size: 13px; color: var(--muted); }
-.warn-box { background: rgba(233,20,41,0.15); border: 1px solid var(--danger); border-radius: 10px; padding: 12px; margin-bottom: 14px; font-size: 13px; }
-#diag { white-space: pre-wrap; font: 12px/1.5 ui-monospace, Menlo, monospace; background: #000; padding: 10px; border-radius: 8px; margin-top: 10px; color: #1DB954; }
+.settings-card { background: var(--surface); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 14px; margin-top: 22px; font-size: 13px; color: var(--muted); }
+.warn-box { background: rgba(255,69,58,0.16); border: 1px solid var(--danger); border-radius: 12px; padding: 12px; margin-bottom: 14px; font-size: 13px; }
+#diag { white-space: pre-wrap; font: 12px/1.5 ui-monospace, Menlo, monospace; background: #0a0a0c; padding: 10px; border-radius: 10px; margin-top: 10px; color: #30d158; }
 [hidden] { display: none !important; }
 input[type=file] { display: none; }
 </style>
@@ -610,14 +668,14 @@ input[type=file] { display: none; }
 <body>
 
 <main>
-  <!-- VISTA 1: HOME -->
+  <!-- SCHEDA 1: ASCOLTA ORA (HOME APPLE MUSIC) -->
   <section id="viewHome">
-    <div class="top-bar">
-      <div class="top-title-group">
-        <h1 id="greeting">Buonasera</h1>
-        <span class="top-sub" id="homeSub">La tua musica offline</span>
+    <div class="am-header">
+      <div>
+        <div class="am-kicker" id="greeting">Buonasera</div>
+        <h1>Ascolta ora</h1>
       </div>
-      <button class="pill-btn primary" id="addBtnHome">
+      <button class="am-btn solid" id="addBtnHome">
         <svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
         Importa
       </button>
@@ -625,132 +683,141 @@ input[type=file] { display: none; }
 
     <div class="warn-box" id="warn" hidden>
       <div>Alcune canzoni sono solo in RAM e spariranno chiudendo l'app.</div>
-      <button class="pill-btn" id="rescueBtn" style="margin-top:8px;background:var(--danger)">Salva ora nella memoria</button>
+      <button class="am-btn solid" id="rescueBtn" style="margin-top:8px;background:var(--danger)">Salva ora nella memoria</button>
     </div>
 
-    <div class="quick-grid" id="quickGrid"></div>
+    <h2 style="margin-top:4px">Aggiunti di recente</h2>
+    <div class="am-grid-2" id="recentGrid"></div>
 
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <h2 style="margin-top:6px">Tutti i tuoi brani</h2>
+    <div style="display:flex;justify-content:space-between;align-items:baseline">
+      <h2>Brani</h2>
       <span id="songCount" style="font-size:12px;font-weight:600;color:var(--muted)">0 brani</span>
     </div>
 
-    <ul id="homeSongList"></ul>
+    <ul class="am-card-list" id="homeSongList"></ul>
 
     <div id="emptyHome" style="text-align:center;padding:48px 16px;color:var(--muted)">
-      <p style="font-size:16px;font-weight:700;color:#FFF;margin-bottom:6px">La tua libreria è vuota</p>
-      <p style="font-size:13px;margin-bottom:18px">Importa i tuoi file MP3, M4A o un archivio .ZIP per ascoltarli offline come su Spotify.</p>
-      <button class="pill-btn primary" id="addBtnEmpty" style="padding:12px 22px;font-size:15px">Scegli file o .ZIP</button>
+      <p style="font-size:17px;font-weight:700;color:#FFF;margin-bottom:6px">La tua libreria è vuota</p>
+      <p style="font-size:13px;margin-bottom:18px">Importa file MP3, M4A, WAV o un archivio .ZIP per ascoltarli offline.</p>
+      <button class="am-btn solid" id="addBtnEmpty" style="padding:12px 22px;font-size:15px">Scegli file o .ZIP</button>
     </div>
   </section>
 
-  <!-- VISTA 2: CERCA -->
-  <section id="viewSearch" hidden>
-    <div class="top-bar"><h1>Cerca</h1></div>
-    <div class="search-box">
-      <div class="search-input-wrap">
-        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-        <input type="search" id="q" placeholder="Brani o artisti..." autocomplete="off">
-        <button class="search-clear" id="qClear" hidden aria-label="Cancella">✕</button>
-      </div>
-    </div>
-    <ul id="searchList"></ul>
-    <div id="searchEmpty" style="text-align:center;padding:40px 16px;color:var(--muted)" hidden>Nessun brano trovato.</div>
-  </section>
-
-  <!-- VISTA 3: LA TUA LIBRERIA -->
+  <!-- SCHEDA 2: LIBRERIA APPLE MUSIC -->
   <section id="viewLib" hidden>
-    <!-- Home Libreria -->
     <div id="libHome">
-      <div class="top-bar">
-        <h1>La tua libreria</h1>
-        <button class="pill-btn" id="newPlBtn">
-          <svg viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-          Playlist
+      <div class="am-header">
+        <div>
+          <div class="am-kicker">Raccolta offline</div>
+          <h1>Libreria</h1>
+        </div>
+        <button class="am-btn" id="newPlBtn">
+          <svg viewBox="0 0 24 24" style="width:17px;height:17px"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+          Nuova playlist
         </button>
       </div>
 
-      <div id="newPlRow" style="display:flex;gap:8px;margin-bottom:14px" hidden>
-        <input class="dlg-input" id="newPlName" placeholder="Nome nuova playlist" maxlength="40" style="margin:0">
-        <button class="pill-btn primary" id="createPlBtn">Crea</button>
+      <div id="newPlRow" style="display:flex;gap:8px;margin-bottom:16px" hidden>
+        <input class="dlg-input" id="newPlName" placeholder="Titolo playlist" maxlength="40" style="margin:0">
+        <button class="am-btn solid" id="createPlBtn">Crea</button>
       </div>
 
-      <ul id="libList"></ul>
+      <h2 style="margin-top:4px">Playlist</h2>
+      <div class="am-grid-2" id="libGrid"></div>
 
       <div class="settings-card">
-        <div style="font-weight:700;color:#FFF;margin-bottom:8px">Backup e Stato</div>
+        <div style="font-weight:700;color:#FFF;margin-bottom:10px">Backup e Stato</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="pill-btn" id="expBtn">Esporta backup playlist</button>
-          <button class="pill-btn" id="impBtn">Importa backup</button>
-          <button class="pill-btn" id="diagBtn">Stato memoria</button>
+          <button class="am-btn ghost" id="expBtn">Esporta backup</button>
+          <button class="am-btn ghost" id="impBtn">Importa backup</button>
+          <button class="am-btn ghost" id="diagBtn">Stato memoria</button>
         </div>
         <div id="ver" style="margin-top:10px;font-size:12px"></div>
         <pre id="diag" hidden></pre>
       </div>
     </div>
 
-    <!-- Dettaglio Playlist / Brani che ti piacciono -->
+    <!-- Dettaglio Playlist / Brani preferiti -->
     <div id="libOpen" hidden>
-      <button class="pill-btn" id="backLibBtn" style="margin-bottom:8px">‹ Libreria</button>
+      <button class="am-btn" id="backLibBtn" style="margin-bottom:10px">‹ Libreria</button>
       <div class="pl-hero">
         <div class="pl-cover-lg" id="plHeroCover"></div>
-        <h1 id="plTitle" style="font-size:26px"></h1>
-        <div id="plSub" style="font-size:13px;color:var(--muted);margin-top:4px"></div>
-        <div class="pl-actions">
-          <div style="display:flex;gap:8px">
-            <button class="pill-btn" id="plAddSongsBtn">+ Aggiungi</button>
-            <button class="pill-btn" id="plDelBtn" style="color:#ff6b6b">Elimina</button>
-          </div>
-          <div style="display:flex;align-items:center;gap:12px">
-            <button class="icon-btn" id="plShuffleBtn" aria-label="Casuale">
-              <svg viewBox="0 0 24 24"><path d="M10.59 9.17 5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
-            </button>
-            <button class="play-fab" id="plPlayBtn" aria-label="Riproduci">
-              <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-            </button>
-          </div>
+        <h1 id="plTitle" style="font-size:24px"></h1>
+        <div id="plSub" style="font-size:13px;font-weight:600;color:var(--muted);margin-top:4px"></div>
+        <div class="pl-cta-row">
+          <button class="am-big-btn play-main" id="plPlayBtn">
+            <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            Riproduci
+          </button>
+          <button class="am-big-btn" id="plShuffleBtn">
+            <svg viewBox="0 0 24 24"><path d="M10.59 9.17 5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
+            Casuale
+          </button>
+        </div>
+        <div style="display:flex;gap:8px;width:100%;margin-top:4px">
+          <button class="am-btn ghost" id="plAddSongsBtn" style="flex:1;justify-content:center">+ Aggiungi brani</button>
+          <button class="am-btn ghost" id="plDelBtn" style="color:var(--danger)">Elimina</button>
         </div>
       </div>
-      <ul id="plSongsList"></ul>
-      <div id="plEmpty" style="text-align:center;padding:32px;color:var(--muted)" hidden>Nessun brano in questa raccolta.</div>
+      <ul class="am-card-list" id="plSongsList"></ul>
+      <div id="plEmpty" style="text-align:center;padding:32px;color:var(--muted)" hidden>Nessun brano in questa playlist.</div>
     </div>
 
     <!-- Picker Brani per Playlist -->
     <div id="libPicker" hidden>
-      <div class="top-bar">
-        <h1 style="font-size:20px">Aggiungi a <span id="pickerPlName"></span></h1>
-        <button class="pill-btn primary" id="donePickBtn">Fatto</button>
+      <div class="am-header">
+        <h1 style="font-size:22px">Aggiungi a <span id="pickerPlName"></span></h1>
+        <button class="am-btn solid" id="donePickBtn">Fine</button>
       </div>
-      <ul id="pickerList"></ul>
+      <ul class="am-card-list" id="pickerList"></ul>
     </div>
+  </section>
+
+  <!-- SCHEDA 3: CERCA APPLE MUSIC -->
+  <section id="viewSearch" hidden>
+    <div class="am-header">
+      <div>
+        <div class="am-kicker">Nella libreria</div>
+        <h1>Cerca</h1>
+      </div>
+    </div>
+    <div class="search-box">
+      <div class="search-input-wrap">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        <input type="search" id="q" placeholder="Artisti, brani..." autocomplete="off">
+        <button class="search-clear" id="qClear" hidden aria-label="Cancella">✕</button>
+      </div>
+    </div>
+    <ul class="am-card-list" id="searchList"></ul>
+    <div id="searchEmpty" style="text-align:center;padding:40px 16px;color:var(--muted)" hidden>Nessun risultato.</div>
   </section>
 </main>
 
-<!-- MINI & FULL PLAYER -->
+<!-- MINI & FULL PLAYER STILE APPLE MUSIC -->
 <div id="player">
   <!-- Mini Bar -->
   <div class="mini-row">
     <div class="mini-cover" id="miniCover"></div>
     <div class="mini-meta" id="openFullBtn">
       <div class="mini-title" id="miniTitle">Nessun brano</div>
-      <div class="mini-artist" id="miniArtist">Artista sconosciuto</div>
+      <div class="mini-artist" id="miniArtist">Artista</div>
     </div>
     <div class="mini-ctrls">
-      <button id="miniLikeBtn" aria-label="Mi piace">
-        <svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>
-      </button>
       <button id="miniPpBtn" aria-label="Play/Pausa">
         <svg id="miniPpIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <button id="miniNextBtn" aria-label="Successiva">
+        <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
       </button>
     </div>
   </div>
 
-  <!-- Full Screen Player -->
+  <!-- Full Screen Now Playing -->
   <div id="fullPlayer">
+    <div class="fp-grabber" id="closeNp" title="Chiudi"></div>
     <div class="fp-top">
-      <button class="icon-btn" id="closeNp" aria-label="Riduci"><svg viewBox="0 0 24 24"><path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg></button>
-      <span class="fp-ctx" id="fpContext">In riproduzione dalla libreria</span>
-      <button class="icon-btn" id="fpMenuBtn" aria-label="Opzioni"><svg viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg></button>
+      <span class="fp-ctx" id="fpContext">In riproduzione</span>
+      <button class="icon-btn" id="fpMenuBtn" aria-label="Altro"><svg viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg></button>
     </div>
 
     <div class="fp-art-wrap" id="fpArt"></div>
@@ -760,7 +827,7 @@ input[type=file] { display: none; }
         <div class="fp-title" id="fpTitle">Titolo</div>
         <div class="fp-artist" id="fpArtist">Artista</div>
       </div>
-      <button class="icon-btn" id="fpLikeBtn" aria-label="Mi piace"></button>
+      <button class="fp-fav-circle" id="fpLikeBtn" aria-label="Preferito"></button>
     </div>
 
     <div class="seek-wrap">
@@ -770,21 +837,21 @@ input[type=file] { display: none; }
 
     <div class="fp-controls">
       <button id="shufBtn" aria-label="Casuale"><svg viewBox="0 0 24 24"><path d="M10.59 9.17 5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg></button>
-      <button id="prevBtn" aria-label="Precedente"><svg viewBox="0 0 24 24" style="width:32px;height:32px"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg></button>
+      <button id="prevBtn" aria-label="Precedente"><svg viewBox="0 0 24 24" style="width:34px;height:34px"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg></button>
       <button id="ppBtn" class="fp-play-btn" aria-label="Play/Pausa"><svg id="fpPpIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
-      <button id="nextBtn" aria-label="Successiva"><svg viewBox="0 0 24 24" style="width:32px;height:32px"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+      <button id="nextBtn" aria-label="Successiva"><svg viewBox="0 0 24 24" style="width:34px;height:34px"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
       <button id="repBtn" aria-label="Ripeti"><svg id="repIcon" viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg></button>
     </div>
 
     <div class="fp-footer">
-      <button class="pill-btn" id="airBtn">
+      <button class="am-btn ghost" id="airBtn">
         <svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M6 22h12l-6-6-6 6zM21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4v-2H3V5h18v12h-4v2h4c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
-        Dispositivi / AirPlay
+        AirPlay / Dispositivi
       </button>
     </div>
 
     <div class="q-card-box">
-      <div class="q-head"><span>In coda</span><button class="pill-btn" id="qClearBtn" style="padding:4px 10px;font-size:11px">Svuota</button></div>
+      <div class="q-head"><span>In coda</span><button class="am-btn ghost" id="qClearBtn" style="padding:4px 10px;font-size:11px">Svuota</button></div>
       <ul id="qList"></ul>
       <div class="q-head" style="margin-top:12px"><span id="qNextTitle">Prossimi brani</span></div>
       <ul id="qNextList"></ul>
@@ -792,22 +859,19 @@ input[type=file] { display: none; }
   </div>
 </div>
 
-<!-- BOTTOM TABS STILE INSTAGRAM -->
+<!-- BOTTOM TAB BAR APPLE MUSIC -->
 <nav id="tabs">
-  <button id="tabHome" class="on" aria-label="Home">
-    <svg class="ico-out" viewBox="0 0 24 24"><path d="M12 3.1 3 10.2V21h6.5v-6.5h5V21H21V10.2L12 3.1zm7 15.9h-2.5v-6.5h-9V19H5v-7.8l7-5.5 7 5.5V19z"/></svg>
-    <svg class="ico-fill" viewBox="0 0 24 24"><path d="M12 2.5 2.5 10v11.5h7v-6.5h5v6.5h7V10L12 2.5z"/></svg>
-    Home
-  </button>
-  <button id="tabSearch" aria-label="Cerca">
-    <svg class="ico-out" viewBox="0 0 24 24"><path d="M11 3a8 8 0 1 0 4.9 14.32l4.39 4.39 1.41-1.41-4.39-4.39A8 8 0 0 0 11 3zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z"/></svg>
-    <svg class="ico-fill" viewBox="0 0 24 24"><path d="M11 2.5a8.5 8.5 0 1 0 5.18 15.24l4.04 4.04 1.77-1.77-4.04-4.04A8.5 8.5 0 0 0 11 2.5zm0 2.5a6 6 0 1 1 0 12 6 6 0 0 1 0-12z"/></svg>
-    Cerca
+  <button id="tabHome" class="on" aria-label="Ascolta ora">
+    <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+    Ascolta ora
   </button>
   <button id="tabLib" aria-label="Libreria">
-    <svg class="ico-out" viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12zm-7-2h2v-3h3V9h-3V6h-2v3h-3v2h3v3z"/></svg>
-    <svg class="ico-fill" viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9h-4v4h-2v-4H9V9h4V5h2v4h4v2z"/></svg>
+    <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 7h-3v3h-2V9h-3V7h3V4h2v3h3v2z"/></svg>
     Libreria
+  </button>
+  <button id="tabSearch" aria-label="Cerca">
+    <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+    Cerca
   </button>
 </nav>
 
@@ -817,13 +881,13 @@ input[type=file] { display: none; }
 <!-- DIALOG MODIFICA BRANO -->
 <div id="dlg" hidden>
   <div class="dlg-box">
-    <div style="font-weight:800;font-size:17px;margin-bottom:12px" id="dlgHead">Dettagli brano</div>
+    <div style="font-weight:700;font-size:17px;margin-bottom:12px" id="dlgHead">Dettagli brano</div>
     <input class="dlg-input" id="dlgTitle" placeholder="Titolo canzone" maxlength="80">
-    <input class="dlg-input" id="dlgArtist" placeholder="Artista (es. Sfera Ebbasta)" maxlength="80">
-    <button class="pill-btn" id="dlgPickImg" style="width:100%;justify-content:center;margin-bottom:10px">Scegli copertina dal rullino</button>
+    <input class="dlg-input" id="dlgArtist" placeholder="Artista" maxlength="80">
+    <button class="am-btn ghost" id="dlgPickImg" style="width:100%;justify-content:center;margin-bottom:10px">Scegli copertina dal rullino</button>
     <div class="dlg-row">
-      <button id="dlgCancel" style="background:#3E3E3E;color:#FFF">Annulla</button>
-      <button id="dlgSave" style="background:var(--accent);color:#000">Salva</button>
+      <button id="dlgCancel" style="background:#2c2c2e;color:#FFF">Annulla</button>
+      <button id="dlgSave" style="background:var(--accent);color:#FFF">Salva</button>
     </div>
   </div>
 </div>
@@ -837,17 +901,17 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 24;
-const SESSION_KEY = "musica_locale_state_v24";
+const APP_VERSION = 25;
+const SESSION_KEY = "musica_locale_state_v25";
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
-const SVG_HEART_IN = '<svg viewBox="0 0 24 24" style="color:var(--accent)"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>';
+const SVG_HEART_IN = '<svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>';
 const SVG_PLAY = '<path d="M8 5v14l11-7z"/>';
 const SVG_PAUSE = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
 
 let db = null, songs = [], lists = [], curId = null, audioUrl = null;
-let tempId = -1, queue = [], upNext = [], ctxId = null, ctxName = "Tutti i brani";
+let tempId = -1, queue = [], upNext = [], ctxId = null, ctxName = "Libreria";
 let openPlId = null, pickingPl = false, shuffle = false, repeatMode = 0; // 0: off, 1: all, 2: one
 let prefetchedNext = { id: null, url: null, blob: null };
 let userPaused = false;
@@ -972,7 +1036,7 @@ async function extractAudioFromZip(zipFile) {
   return extracted;
 }
 
-/* --- PARSER METADATI ID3v2 NATIVO (Titolo, Artista, Copertina) --- */
+/* --- PARSER METADATI ID3v2 NATIVO --- */
 function parseID3(buffer) {
   const res = { title: null, artist: null, cover: null };
   try {
@@ -1034,10 +1098,9 @@ function parseID3(buffer) {
   return res;
 }
 
-/* Estrae colore dominante dalla copertina per sfumatura Spotify */
 function applyCoverColor(dataUrl) {
   if (!dataUrl) {
-    document.documentElement.style.setProperty("--np-color", "#26382f");
+    document.documentElement.style.setProperty("--np-color", "#2b1419");
     return;
   }
   const img = new Image();
@@ -1052,9 +1115,9 @@ function applyCoverColor(dataUrl) {
       for (let i = 0; i < d.length; i += 4) {
         r += d[i]; g += d[i+1]; b += d[i+2]; n++;
       }
-      r = Math.min(130, Math.floor(r / n * 0.75));
-      g = Math.min(130, Math.floor(g / n * 0.75));
-      b = Math.min(130, Math.floor(b / n * 0.75));
+      r = Math.min(135, Math.floor(r / n * 0.72));
+      g = Math.min(115, Math.floor(g / n * 0.62));
+      b = Math.min(125, Math.floor(b / n * 0.68));
       document.documentElement.style.setProperty("--np-color", `rgb(${r},${g},${b})`);
     } catch (e) {}
   };
@@ -1098,7 +1161,7 @@ async function load() {
     queue = Array.isArray(saved.queue) ? saved.queue : [];
     upNext = Array.isArray(saved.upNext) ? saved.upNext : [];
     ctxId = saved.ctxId || saved.curId;
-    ctxName = saved.ctxName || "Tutti i brani";
+    ctxName = saved.ctxName || "Libreria";
     shuffle = Boolean(saved.shuffle);
     repeatMode = Number(saved.repeatMode) || 0;
     lastKnownPos = Number(saved.pos) || 0;
@@ -1248,10 +1311,10 @@ async function writeSongToDb(rec, buf) {
   } catch (e) { return false; }
 }
 
-/* --- RENDERING UI --- */
-function coverHtml(cover, likedGrad = false) {
+/* --- RENDERING UI APPLE MUSIC --- */
+function coverHtml(cover, favGrad = false) {
   if (cover) return `<img src="${cover}" alt="">`;
-  if (likedGrad) return `<svg viewBox="0 0 24 24" style="color:#FFF"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`;
+  if (favGrad) return `<svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`;
   return SVG_NOTE;
 }
 
@@ -1291,7 +1354,7 @@ function makeTrackRow(s, ctxIds, ctxLabel, extraBtn = null) {
     s.liked = !s.liked;
     saveSongMeta(s);
     renderAll();
-    toast(s.liked ? "Aggiunto ai Brani che ti piacciono" : "Rimosso dai Brani che ti piacciono");
+    toast(s.liked ? "Aggiunto ai Preferiti" : "Rimosso dai Preferiti");
   };
 
   const moreBtn = document.createElement("button");
@@ -1303,47 +1366,38 @@ function makeTrackRow(s, ctxIds, ctxLabel, extraBtn = null) {
   return li;
 }
 
+function renderRecentGrid() {
+  const rg = $("#recentGrid");
+  rg.innerHTML = "";
+  const recent = [...songs].sort((a, b) => (b.addedAt || b.id || 0) - (a.addedAt || a.id || 0)).slice(0, 4);
+  const allIds = songs.map(s => s.id);
+  recent.forEach(s => {
+    const btn = document.createElement("button");
+    btn.className = "am-tile";
+    btn.innerHTML = `
+      <div class="am-tile-art">${coverHtml(s.cover)}</div>
+      <div class="am-tile-title">${esc(s.name)}</div>
+      <div class="am-tile-sub">${esc(s.artist || "Artista locale")}</div>
+    `;
+    btn.onclick = () => play(s.id, allIds, false, "Ascolta ora");
+    rg.append(btn);
+  });
+}
+
 function renderAll() {
   songs.sort((a, b) => a.name.localeCompare(b.name, "it"));
   $("#warn").hidden = !songs.some(s => s.mem);
   $("#songCount").textContent = `${songs.length} ${songs.length === 1 ? "brano" : "brani"}`;
-  $("#homeSub").textContent = songs.length
-    ? `${songs.length} ${songs.length === 1 ? "brano offline" : "brani offline"} • ${lists.length} playlist`
-    : "La tua musica offline";
   $("#emptyHome").hidden = songs.length > 0;
+  $("#recentGrid").hidden = songs.length === 0;
+  $("#homeSongList").hidden = songs.length === 0;
 
-  const qg = $("#quickGrid");
-  qg.innerHTML = "";
-  const likedSongs = songs.filter(s => s.liked);
-  const addQuick = (label, artHtml, isLikedCard, onClick) => {
-    const b = document.createElement("button");
-    b.className = "q-card";
-    b.innerHTML = `<div class="q-art ${isLikedCard ? 'liked-grad' : ''}">${artHtml}</div><span>${esc(label)}</span>`;
-    b.onclick = onClick;
-    qg.append(b);
-  };
-
-  addQuick(`Brani che ti piacciono (${likedSongs.length})`, coverHtml(null, true), true, () => {
-    setTab("lib");
-    openPlId = "LIKED";
-    pickingPl = false;
-    renderLib();
-  });
-
-  lists.slice(0, 3).forEach(pl => {
-    const valid = pl.songIds.map(id => songs.find(s => s.id === id)).filter(Boolean);
-    addQuick(pl.name, playlistCoverHtml(valid), false, () => {
-      setTab("lib");
-      openPlId = pl.id;
-      pickingPl = false;
-      renderLib();
-    });
-  });
+  renderRecentGrid();
 
   const homeUl = $("#homeSongList");
   homeUl.innerHTML = "";
   const allIds = songs.map(s => s.id);
-  songs.forEach(s => homeUl.append(makeTrackRow(s, allIds, "Tutti i tuoi brani")));
+  songs.forEach(s => homeUl.append(makeTrackRow(s, allIds, "Brani")));
 
   renderSearch();
   renderLib();
@@ -1360,9 +1414,10 @@ function renderSearch() {
   const filtered = songs.filter(s =>
     s.name.toLowerCase().includes(q) || (s.artist || "").toLowerCase().includes(q)
   );
+  ul.hidden = filtered.length === 0;
   $("#searchEmpty").hidden = filtered.length > 0 || songs.length === 0;
   const ids = filtered.map(s => s.id);
-  filtered.forEach(s => ul.append(makeTrackRow(s, ids, "Risultati ricerca")));
+  filtered.forEach(s => ul.append(makeTrackRow(s, ids, "Cerca")));
 }
 
 function renderLib() {
@@ -1372,45 +1427,37 @@ function renderLib() {
   $("#libPicker").hidden = home || !pickingPl;
 
   if (home) {
-    const ul = $("#libList");
-    ul.innerHTML = "";
+    const grid = $("#libGrid");
+    grid.innerHTML = "";
     const likedCount = songs.filter(s => s.liked).length;
 
-    const liLiked = document.createElement("li");
-    liLiked.className = "track-row";
-    liLiked.innerHTML = `
-      <button class="track-main">
-        <div class="cover-sm" style="background:linear-gradient(135deg,#4b15f5,#c4efd9)">${coverHtml(null, true)}</div>
-        <div class="t-info">
-          <div class="t-title">Brani che ti piacciono</div>
-          <div class="t-sub">Playlist • ${likedCount} ${likedCount === 1 ? "brano" : "brani"}</div>
-        </div>
-      </button>
+    const favTile = document.createElement("button");
+    favTile.className = "am-tile";
+    favTile.innerHTML = `
+      <div class="am-tile-art fav-grad">${coverHtml(null, true)}</div>
+      <div class="am-tile-title">Brani preferiti</div>
+      <div class="am-tile-sub">${likedCount} ${likedCount === 1 ? "brano" : "brani"}</div>
     `;
-    liLiked.onclick = () => { openPlId = "LIKED"; renderLib(); };
-    ul.append(liLiked);
+    favTile.onclick = () => { openPlId = "LIKED"; renderLib(); };
+    grid.append(favTile);
 
     lists.forEach(pl => {
       const validSongs = pl.songIds.map(id => songs.find(s => s.id === id)).filter(Boolean);
-      const li = document.createElement("li");
-      li.className = "track-row";
-      li.innerHTML = `
-        <button class="track-main">
-          <div class="cover-sm">${playlistCoverHtml(validSongs)}</div>
-          <div class="t-info">
-            <div class="t-title">${esc(pl.name)}</div>
-            <div class="t-sub">Playlist • ${validSongs.length} ${validSongs.length === 1 ? "brano" : "brani"}</div>
-          </div>
-        </button>
+      const tile = document.createElement("button");
+      tile.className = "am-tile";
+      tile.innerHTML = `
+        <div class="am-tile-art">${playlistCoverHtml(validSongs)}</div>
+        <div class="am-tile-title">${esc(pl.name)}</div>
+        <div class="am-tile-sub">${validSongs.length} ${validSongs.length === 1 ? "brano" : "brani"}</div>
       `;
-      li.onclick = () => { openPlId = pl.id; renderLib(); };
-      ul.append(li);
+      tile.onclick = () => { openPlId = pl.id; renderLib(); };
+      grid.append(tile);
     });
     return;
   }
 
   const isLikedView = openPlId === "LIKED";
-  const pl = isLikedView ? { name: "Brani che ti piacciono" } : lists.find(x => x.id === openPlId);
+  const pl = isLikedView ? { name: "Brani preferiti" } : lists.find(x => x.id === openPlId);
   if (!pl) { openPlId = null; renderLib(); return; }
 
   if (pickingPl && !isLikedView) {
@@ -1447,10 +1494,11 @@ function renderLib() {
   $("#plAddSongsBtn").hidden = isLikedView;
   $("#plDelBtn").hidden = isLikedView;
   $("#plEmpty").hidden = items.length > 0;
+  $("#plSongsList").hidden = items.length === 0;
   $("#plShuffleBtn").classList.toggle("active", shuffle);
 
   const hero = $("#plHeroCover");
-  hero.className = "pl-cover-lg" + (isLikedView ? " liked-grad" : "");
+  hero.className = "pl-cover-lg" + (isLikedView ? " fav-grad" : "");
   hero.innerHTML = isLikedView ? coverHtml(null, true) : playlistCoverHtml(items);
 
   const ul = $("#plSongsList");
@@ -1693,7 +1741,7 @@ function renderPlayerUI() {
   $("#fpContext").textContent = ctxName;
   $("#miniCover").innerHTML = coverHtml(s.cover);
   $("#fpArt").innerHTML = coverHtml(s.cover);
-  $("#miniLikeBtn").innerHTML = s.liked ? SVG_HEART_IN : SVG_HEART_OUT;
+  $("#fpLikeBtn").classList.toggle("liked", Boolean(s.liked));
   $("#fpLikeBtn").innerHTML = s.liked ? SVG_HEART_IN : SVG_HEART_OUT;
 }
 
@@ -1751,7 +1799,8 @@ function openSongMenu(s, ctxIds, ctxLabel) {
     box.append(b);
   };
 
-  addAct("Metti in coda", () => { upNext.push(s.id); renderQueue(); prefetchNextTrack(); persistPlaybackState(); toast("Aggiunto in coda"); });
+  addAct("Riproduci successivo", () => { upNext.unshift(s.id); renderQueue(); prefetchNextTrack(); persistPlaybackState(); toast("Riprodotto come successivo"); });
+  addAct("Aggiungi alla coda", () => { upNext.push(s.id); renderQueue(); prefetchNextTrack(); persistPlaybackState(); toast("Aggiunto alla coda"); });
   addAct("Modifica titolo, artista o copertina", () => openEditDialog(s));
   lists.forEach(pl => {
     const inPl = pl.songIds.includes(s.id);
@@ -1762,7 +1811,7 @@ function openSongMenu(s, ctxIds, ctxLabel) {
       toast(inPl ? "Rimosso dalla playlist" : `Aggiunto a ${pl.name}`);
     });
   });
-  addAct("Elimina definitivamente dal telefono", () => deleteSong(s.id), true);
+  addAct("Elimina dalla libreria", () => deleteSong(s.id), true);
   $("#sheet").hidden = false;
 }
 
@@ -1840,7 +1889,7 @@ function bindRowGestures(el, s, ctxIds, ctxLabel) {
   });
   el.addEventListener("pointerup", () => {
     clearTimeout(timer);
-    if (dx > 65) { upNext.push(s.id); renderQueue(); prefetchNextTrack(); persistPlaybackState(); toast("Aggiunto in coda"); }
+    if (dx > 65) { upNext.push(s.id); renderQueue(); prefetchNextTrack(); persistPlaybackState(); toast("Aggiunto alla coda"); }
     el.style.transform = "";
   });
   el.addEventListener("pointercancel", () => { clearTimeout(timer); el.style.transform = ""; });
@@ -1849,18 +1898,18 @@ function bindRowGestures(el, s, ctxIds, ctxLabel) {
 /* --- EVENTI UI --- */
 function setTab(tab) {
   $("#viewHome").hidden = tab !== "home";
-  $("#viewSearch").hidden = tab !== "search";
   $("#viewLib").hidden = tab !== "lib";
+  $("#viewSearch").hidden = tab !== "search";
   $("#tabHome").classList.toggle("on", tab === "home");
-  $("#tabSearch").classList.toggle("on", tab === "search");
   $("#tabLib").classList.toggle("on", tab === "lib");
+  $("#tabSearch").classList.toggle("on", tab === "search");
   if (tab === "search") $("#q").focus();
   window.scrollTo(0, 0);
 }
 
 $("#tabHome").onclick = () => setTab("home");
-$("#tabSearch").onclick = () => setTab("search");
 $("#tabLib").onclick = () => { openPlId = null; pickingPl = false; setTab("lib"); renderLib(); };
+$("#tabSearch").onclick = () => setTab("search");
 
 $("#addBtnHome").onclick = $("#addBtnEmpty").onclick = () => $("#fileInput").click();
 $("#fileInput").onchange = e => { addFiles([...e.target.files]); e.target.value = ""; };
@@ -1898,7 +1947,7 @@ $("#plPlayBtn").onclick = () => {
   const items = isLiked ? songs.filter(s => s.liked) : (lists.find(x => x.id === openPlId)?.songIds.map(id => songs.find(s => s.id === id)).filter(Boolean) || []);
   if (!items.length) return;
   const ids = items.map(s => s.id);
-  play(shuffle ? ids[Math.floor(Math.random() * ids.length)] : ids[0], ids, false, isLiked ? "Brani che ti piacciono" : lists.find(x => x.id === openPlId).name);
+  play(shuffle ? ids[Math.floor(Math.random() * ids.length)] : ids[0], ids, false, isLiked ? "Brani preferiti" : lists.find(x => x.id === openPlId).name);
 };
 
 $("#plShuffleBtn").onclick = $("#shufBtn").onclick = () => {
@@ -1908,7 +1957,7 @@ $("#plShuffleBtn").onclick = $("#shufBtn").onclick = () => {
   renderQueue();
   prefetchNextTrack();
   persistPlaybackState();
-  toast(shuffle ? "Riproduzione casuale attivata" : "Riproduzione casuale disattivata");
+  toast(shuffle ? "Casuale attivo" : "Casuale disattivato");
 };
 
 $("#repBtn").onclick = () => {
@@ -1916,7 +1965,7 @@ $("#repBtn").onclick = () => {
   renderPlayerUI();
   prefetchNextTrack();
   persistPlaybackState();
-  toast(["Ripetizione disattivata", "Ripeti playlist", "Ripeti brano corrente"][repeatMode]);
+  toast(["Ripetizione disattivata", "Ripeti playlist", "Ripeti brano"][repeatMode]);
 };
 
 $("#openFullBtn").onclick = () => $("#player").classList.add("open");
@@ -1926,18 +1975,19 @@ $("#fpMenuBtn").onclick = () => {
   if (s) openSongMenu(s, queue, ctxName);
 };
 
-$("#miniLikeBtn").onclick = $("#fpLikeBtn").onclick = () => {
+$("#fpLikeBtn").onclick = () => {
   const s = songs.find(x => x.id === curId);
   if (!s) return;
   s.liked = !s.liked;
   saveSongMeta(s);
   renderAll();
+  toast(s.liked ? "Aggiunto ai Preferiti" : "Rimosso dai Preferiti");
 };
 
 const togglePlay = () => { if (audio.src || curId) { audio.paused ? forcePlayAudio() : pauseAudio(); } };
 $("#miniPpBtn").onclick = $("#ppBtn").onclick = togglePlay;
+$("#miniNextBtn").onclick = $("#nextBtn").onclick = () => step(1);
 $("#prevBtn").onclick = () => step(-1);
-$("#nextBtn").onclick = () => step(1);
 $("#qClearBtn").onclick = () => { upNext = []; renderQueue(); prefetchNextTrack(); persistPlaybackState(); };
 $("#sheet").onclick = e => { if (e.target.id === "sheet") $("#sheet").hidden = true; };
 
@@ -1973,6 +2023,7 @@ const syncIcons = () => {
   const ico = audio.paused ? SVG_PLAY : SVG_PAUSE;
   $("#miniPpIcon").innerHTML = ico;
   $("#fpPpIcon").innerHTML = ico;
+  $("#player").classList.toggle("is-playing", !audio.paused);
 };
 audio.onplay = () => {
   userPaused = false;
@@ -2013,7 +2064,7 @@ $("#expBtn").onclick = () => {
   const data = { v: 2, playlists: lists, liked: songs.filter(s => s.liked).map(s => s.orig || s.name) };
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
-  a.download = "spotify-locale-backup.json";
+  a.download = "musica-backup.json";
   a.click();
 };
 
