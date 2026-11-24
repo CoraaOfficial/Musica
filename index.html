@@ -443,6 +443,77 @@ svg { width: 22px; height: 22px; fill: currentColor; }
 .fp-art-wrap img { width: 100%; height: 100%; object-fit: cover; }
 .fp-art-wrap svg { width: 90px; height: 90px; color: var(--muted); }
 
+/* Testo interattivo sincronizzato stile Spotify / Apple Music */
+.lyrics-card {
+  background: rgba(0, 0, 0, 0.34);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+.lyrics-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.lyrics-title {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #FFFFFF;
+}
+.lyrics-scroll {
+  max-height: 230px;
+  overflow-y: auto;
+  padding: 8px 4px;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+.lyric-line {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.44);
+  padding: 7px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: color .22s ease, transform .22s ease, background .22s ease;
+  transform-origin: left center;
+}
+.lyric-line:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.78);
+}
+.lyric-line.past {
+  color: rgba(255, 255, 255, 0.32);
+}
+.lyric-line.active {
+  color: #FFFFFF;
+  font-size: 20px;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.08);
+  transform: scale(1.02);
+}
+.lyric-line.plain {
+  cursor: default;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 15px;
+  font-weight: 600;
+  padding: 4px 8px;
+}
+.lyric-line.plain:hover {
+  background: none;
+  color: rgba(255, 255, 255, 0.85);
+}
+.lyrics-empty {
+  text-align: center;
+  padding: 18px 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .fp-meta-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
 .fp-title { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fp-artist { font-size: 15px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -565,8 +636,17 @@ input[type=range].sp-range::-webkit-slider-thumb {
 }
 #sheetBox button.act.danger { color: #ff5c5c; }
 
-#dlg { position: fixed; inset: 0; background: rgba(0,0,0,0.78); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 50; }
-.dlg-box { background: #242424; border-radius: 16px; padding: 20px; width: 100%; max-width: 400px; }
+#dlg, #lyricsDlg {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 50;
+}
+.dlg-box { background: #242424; border-radius: 16px; padding: 20px; width: 100%; max-width: 440px; }
 .dlg-input {
   width: 100%;
   background: #363636;
@@ -577,6 +657,25 @@ input[type=range].sp-range::-webkit-slider-thumb {
   font: 600 15px inherit;
   margin-bottom: 10px;
   outline: none;
+}
+.dlg-textarea {
+  width: 100%;
+  min-height: 190px;
+  background: #181818;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: #FFF;
+  font: 500 13px/1.5 ui-monospace, Menlo, monospace;
+  margin-bottom: 10px;
+  outline: none;
+  resize: vertical;
+}
+.dlg-hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 12px;
+  line-height: 1.45;
 }
 .dlg-row { display: flex; gap: 10px; margin-top: 8px; }
 .dlg-row button { flex: 1; padding: 12px; border-radius: 999px; border: 0; font: 700 14px inherit; cursor: pointer; }
@@ -776,6 +875,17 @@ input[type=file] { display: none; }
       <button id="repBtn" aria-label="Ripeti"><svg id="repIcon" viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg></button>
     </div>
 
+    <div class="lyrics-card">
+      <div class="lyrics-head">
+        <span class="lyrics-title">Testo</span>
+        <div style="display:flex;gap:6px">
+          <button class="pill-btn" id="stampNowBtn" style="padding:5px 10px;font-size:11px">+ Segna tempo</button>
+          <button class="pill-btn" id="editLyricsFpBtn" style="padding:5px 10px;font-size:11px">Modifica</button>
+        </div>
+      </div>
+      <div class="lyrics-scroll" id="lyricsBox"></div>
+    </div>
+
     <div class="fp-footer">
       <button class="pill-btn" id="airBtn">
         <svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M6 22h12l-6-6-6 6zM21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4v-2H3V5h18v12h-4v2h4c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
@@ -828,6 +938,21 @@ input[type=file] { display: none; }
   </div>
 </div>
 
+<!-- DIALOG TESTO SINCRONIZZATO (LRC) -->
+<div id="lyricsDlg" hidden>
+  <div class="dlg-box">
+    <div style="font-weight:800;font-size:17px;margin-bottom:6px" id="lyricsDlgHead">Testo brano</div>
+    <div class="dlg-hint">
+      Usa il formato <b>[mm:ss.xx] strofa</b> per la sincronizzazione automatica (es. <code>[00:14.20] Prima barra</code>), oppure scrivi testo semplice riga per riga. Tocca una riga durante l'ascolto per saltare a quel punto.
+    </div>
+    <textarea class="dlg-textarea" id="lyricsTextarea" placeholder="[00:10.00] Prima riga del testo&#10;[00:15.50] Seconda riga sincronizzata..."></textarea>
+    <div class="dlg-row">
+      <button id="lyricsCancel" style="background:#3E3E3E;color:#FFF">Annulla</button>
+      <button id="lyricsSave" style="background:var(--accent);color:#000">Salva testo</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" hidden></div>
 <input type="file" id="fileInput" accept="audio/*,.mp3,.m4a,.wav,.ogg,.aac,.flac,.zip,application/zip,application/x-zip-compressed" multiple>
 <input type="file" id="coverInput" accept="image/*">
@@ -837,8 +962,8 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 24;
-const SESSION_KEY = "musica_locale_state_v24";
+const APP_VERSION = 25;
+const SESSION_KEY = "musica_locale_state_v25";
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -852,6 +977,160 @@ let openPlId = null, pickingPl = false, shuffle = false, repeatMode = 0; // 0: o
 let prefetchedNext = { id: null, url: null, blob: null };
 let userPaused = false;
 let lastKnownPos = 0;
+let activeLyricIdx = -1;
+
+/* --- PARSER E FORMATTAZIONE TESTI SINCRONIZZATI (LRC) --- */
+function formatLrcTimestamp(sec) {
+  const safe = Math.max(0, Number(sec) || 0);
+  const mins = Math.floor(safe / 60);
+  const rem = safe - mins * 60;
+  const whole = Math.floor(rem);
+  const cs = Math.floor((rem - whole) * 100);
+  return `[${String(mins).padStart(2, "0")}:${String(whole).padStart(2, "0")}.${String(cs).padStart(2, "0")}]`;
+}
+
+function parseLyrics(raw) {
+  if (!raw || !raw.trim()) return { lines: [], synced: false };
+  const lines = raw.split(/\r?\n/);
+  const timed = [];
+  const plain = [];
+  const tagRegex = /\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (/^\[(ti|ar|al|by|offset|re|ve):/i.test(trimmed)) continue;
+
+    const matches = [...trimmed.matchAll(tagRegex)];
+    const textOnly = trimmed.replace(tagRegex, "").trim();
+
+    if (matches.length > 0 && textOnly) {
+      for (const m of matches) {
+        const mins = parseInt(m[1], 10) || 0;
+        const secs = parseInt(m[2], 10) || 0;
+        const fracRaw = m[3] || "0";
+        const frac = parseInt(fracRaw, 10) / Math.pow(10, fracRaw.length);
+        timed.push({ time: mins * 60 + secs + frac, text: textOnly });
+      }
+    } else if (textOnly) {
+      plain.push({ time: null, text: textOnly });
+    }
+  }
+
+  if (timed.length > 0) {
+    timed.sort((a, b) => a.time - b.time);
+    return { lines: timed, synced: true };
+  }
+  return { lines: plain, synced: false };
+}
+
+function getActiveLyricIndex(parsed, currentTime) {
+  if (!parsed || !parsed.synced || !parsed.lines.length) return -1;
+  const t = Math.max(0, Number(currentTime) || 0);
+  let idx = -1;
+  for (let i = 0; i < parsed.lines.length; i++) {
+    if (parsed.lines[i].time <= t + 0.08) idx = i;
+    else break;
+  }
+  return idx;
+}
+
+function renderLyrics(forceRebuild = false) {
+  const box = $("#lyricsBox");
+  if (!box) return;
+  const s = songs.find(x => x.id === curId);
+  if (!s) {
+    box.innerHTML = '<div class="lyrics-empty">Avvia un brano per vedere il testo.</div>';
+    box.dataset.songId = "";
+    activeLyricIdx = -1;
+    return;
+  }
+
+  const parsed = parseLyrics(s.lyrics || "");
+  if (!parsed.lines.length) {
+    box.innerHTML = '<div class="lyrics-empty">Nessun testo salvato per questo brano.<br>Tocca <b>Modifica</b> per aggiungere testo o LRC sincronizzato.</div>';
+    box.dataset.songId = String(s.id);
+    activeLyricIdx = -1;
+    return;
+  }
+
+  if (forceRebuild || box.dataset.songId !== String(s.id) || box.dataset.synced !== String(parsed.synced)) {
+    box.dataset.songId = String(s.id);
+    box.dataset.synced = String(parsed.synced);
+    activeLyricIdx = -1;
+    box.innerHTML = "";
+
+    parsed.lines.forEach((item, i) => {
+      const div = document.createElement("div");
+      div.className = "lyric-line" + (parsed.synced ? "" : " plain");
+      div.dataset.idx = String(i);
+      div.textContent = item.text;
+      if (parsed.synced && typeof item.time === "number") {
+        div.onclick = () => {
+          audio.currentTime = Math.max(0, item.time);
+          lastKnownPos = audio.currentTime;
+          safeSetPositionState();
+          persistPlaybackState();
+          if (audio.paused && !userPaused) tryPlayElement();
+          updateActiveLyric(true);
+        };
+      }
+      box.append(div);
+    });
+  }
+
+  if (parsed.synced) {
+    updateActiveLyric(true);
+  }
+}
+
+function updateActiveLyric(forceScroll = false) {
+  const box = $("#lyricsBox");
+  const s = songs.find(x => x.id === curId);
+  if (!box || !s || box.dataset.synced !== "true") return;
+
+  const parsed = parseLyrics(s.lyrics || "");
+  if (!parsed.lines.length) return;
+
+  const pos = isFinite(audio.currentTime) && audio.currentTime > 0 ? audio.currentTime : lastKnownPos;
+  const nextIdx = getActiveLyricIndex(parsed, pos);
+
+  if (nextIdx === activeLyricIdx && !forceScroll) return;
+  activeLyricIdx = nextIdx;
+
+  const rows = box.querySelectorAll(".lyric-line");
+  let activeEl = null;
+  rows.forEach((row, i) => {
+    row.classList.remove("active", "past");
+    if (i === nextIdx) {
+      row.classList.add("active");
+      activeEl = row;
+    } else if (nextIdx > -1 && i < nextIdx) {
+      row.classList.add("past");
+    }
+  });
+
+  if (activeEl) {
+    const targetTop = activeEl.offsetTop - box.clientHeight * 0.35;
+    box.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+  }
+}
+
+function openLyricsEditor(s) {
+  if (!s) return;
+  $("#lyricsDlgHead").textContent = `Testo • ${s.name}`;
+  $("#lyricsTextarea").value = s.lyrics || "";
+  $("#lyricsDlg").hidden = false;
+
+  $("#lyricsCancel").onclick = () => { $("#lyricsDlg").hidden = true; };
+  $("#lyricsSave").onclick = () => {
+    s.lyrics = $("#lyricsTextarea").value.trim() || null;
+    saveSongMeta(s);
+    $("#lyricsDlg").hidden = true;
+    renderLyrics(true);
+    toast(s.lyrics ? "Testo salvato" : "Testo rimosso");
+  };
+}
 
 function persistPlaybackState() {
   try {
@@ -972,9 +1251,9 @@ async function extractAudioFromZip(zipFile) {
   return extracted;
 }
 
-/* --- PARSER METADATI ID3v2 NATIVO (Titolo, Artista, Copertina) --- */
+/* --- PARSER METADATI ID3v2 NATIVO (Titolo, Artista, Copertina, Testo USLT) --- */
 function parseID3(buffer) {
-  const res = { title: null, artist: null, cover: null };
+  const res = { title: null, artist: null, cover: null, lyrics: null };
   try {
     const view = new DataView(buffer);
     if (buffer.byteLength < 10) return res;
@@ -1006,7 +1285,22 @@ function parseID3(buffer) {
 
       if (id === "TIT2") res.title = decodeText(frame);
       else if (id === "TPE1") res.artist = decodeText(frame);
-      else if (id === "APIC" && !res.cover) {
+      else if (id === "USLT" && !res.lyrics && frame.length > 5) {
+        const enc = frame[0];
+        let i = 4;
+        if (enc === 1 || enc === 2) {
+          while (i + 1 < frame.length && !(frame[i] === 0 && frame[i+1] === 0)) i += 2;
+          i += 2;
+        } else {
+          while (i < frame.length && frame[i] !== 0) i++;
+          i += 1;
+        }
+        if (i < frame.length) {
+          const body = frame.slice(i);
+          const rawLyrics = (enc === 1 || enc === 2) ? decUtf16.decode(body) : decUtf8.decode(body);
+          res.lyrics = rawLyrics.replace(/\0/g, "").trim() || null;
+        }
+      } else if (id === "APIC" && !res.cover) {
         let i = 1;
         while (i < frame.length && frame[i] !== 0) i++;
         const mime = new TextDecoder("ascii").decode(frame.slice(1, i)) || "image/jpeg";
@@ -1119,6 +1413,7 @@ async function load() {
         if (lastKnownPos > 0 && isFinite(audio.duration) && lastKnownPos < audio.duration) {
           try { audio.currentTime = lastKnownPos; } catch (e) {}
         }
+        updateActiveLyric(true);
         syncMediaSession();
         if (saved.wasPlaying) {
           tryPlayElement();
@@ -1174,6 +1469,7 @@ async function addFiles(pickedFiles) {
       name: guessTitle,
       artist: guessArtist,
       cover: id3.cover || null,
+      lyrics: id3.lyrics || null,
       liked: false,
       orig: origName,
       size,
@@ -1587,6 +1883,7 @@ function startTrackImmediate(id, urlToPlay, fromQueue, label) {
   audioUrl = urlToPlay;
   userPaused = false;
   lastKnownPos = 0;
+  activeLyricIdx = -1;
 
   audio.pause();
   audio.src = audioUrl;
@@ -1601,6 +1898,7 @@ function startTrackImmediate(id, urlToPlay, fromQueue, label) {
   applyCoverColor(s.cover);
 
   renderAll();
+  renderLyrics(true);
   syncMediaSession();
   prefetchNextTrack();
   persistPlaybackState();
@@ -1695,6 +1993,7 @@ function renderPlayerUI() {
   $("#fpArt").innerHTML = coverHtml(s.cover);
   $("#miniLikeBtn").innerHTML = s.liked ? SVG_HEART_IN : SVG_HEART_OUT;
   $("#fpLikeBtn").innerHTML = s.liked ? SVG_HEART_IN : SVG_HEART_OUT;
+  renderLyrics(false);
 }
 
 function renderQueue() {
@@ -1752,6 +2051,7 @@ function openSongMenu(s, ctxIds, ctxLabel) {
   };
 
   addAct("Metti in coda", () => { upNext.push(s.id); renderQueue(); prefetchNextTrack(); persistPlaybackState(); toast("Aggiunto in coda"); });
+  addAct("Testo sincronizzato (LRC)", () => openLyricsEditor(s));
   addAct("Modifica titolo, artista o copertina", () => openEditDialog(s));
   lists.forEach(pl => {
     const inPl = pl.songIds.includes(s.id);
@@ -1919,11 +2219,30 @@ $("#repBtn").onclick = () => {
   toast(["Ripetizione disattivata", "Ripeti playlist", "Ripeti brano corrente"][repeatMode]);
 };
 
-$("#openFullBtn").onclick = () => $("#player").classList.add("open");
+$("#openFullBtn").onclick = () => {
+  $("#player").classList.add("open");
+  renderLyrics(false);
+  updateActiveLyric(true);
+};
 $("#closeNp").onclick = () => $("#player").classList.remove("open");
 $("#fpMenuBtn").onclick = () => {
   const s = songs.find(x => x.id === curId);
   if (s) openSongMenu(s, queue, ctxName);
+};
+
+$("#editLyricsFpBtn").onclick = () => {
+  const s = songs.find(x => x.id === curId);
+  if (s) openLyricsEditor(s);
+};
+
+$("#stampNowBtn").onclick = () => {
+  const s = songs.find(x => x.id === curId);
+  if (!s) return;
+  const tag = formatLrcTimestamp(audio.currentTime || 0);
+  const currentText = (s.lyrics || "").trim();
+  const nextText = currentText ? `${currentText}\n${tag} ` : `${tag} `;
+  openLyricsEditor({ ...s, lyrics: nextText });
+  toast(`Inserito timestamp ${tag}`);
 };
 
 $("#miniLikeBtn").onclick = $("#fpLikeBtn").onclick = () => {
@@ -1946,6 +2265,7 @@ $("#seek").oninput = e => {
     const newPos = (e.target.value / 1000) * audio.duration;
     audio.currentTime = newPos;
     lastKnownPos = newPos;
+    updateActiveLyric(true);
     safeSetPositionState();
     persistPlaybackState();
   }
@@ -1962,6 +2282,7 @@ audio.ontimeupdate = () => {
     $("#seek").value = p * 1000;
     $("#player").style.setProperty("--p", (p * 100) + "%");
   }
+  updateActiveLyric(false);
 };
 
 audio.onloadedmetadata = () => {
@@ -1989,13 +2310,14 @@ audio.onpause = () => {
   syncMediaSession();
   persistPlaybackState();
 };
-audio.onended = () => { lastKnownPos = 0; step(1); };
+audio.onended = () => { lastKnownPos = 0; activeLyricIdx = -1; step(1); };
 
 document.addEventListener("visibilitychange", () => {
   persistPlaybackState();
   if (document.visibilityState === "visible" && curId) {
     syncIcons();
     syncMediaSession();
+    updateActiveLyric(true);
   }
 });
 
@@ -2071,6 +2393,7 @@ function syncMediaSession() {
             const target = Math.max(0, Math.min(details.seekTime, audio.duration));
             audio.currentTime = target;
             lastKnownPos = target;
+            updateActiveLyric(true);
             safeSetPositionState();
             persistPlaybackState();
           }
