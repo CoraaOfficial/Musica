@@ -457,6 +457,7 @@ svg { width: 22px; height: 22px; fill: currentColor; }
   justify-content: space-between;
   gap: 8px;
   margin-bottom: 10px;
+  flex-wrap: wrap;
 }
 .lyrics-title {
   font-size: 13px;
@@ -645,8 +646,9 @@ input[type=range].sp-range::-webkit-slider-thumb {
   justify-content: center;
   padding: 20px;
   z-index: 50;
+  overflow-y: auto;
 }
-.dlg-box { background: #242424; border-radius: 16px; padding: 20px; width: 100%; max-width: 440px; }
+.dlg-box { background: #242424; border-radius: 16px; padding: 20px; width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto; }
 .dlg-input {
   width: 100%;
   background: #363636;
@@ -660,7 +662,7 @@ input[type=range].sp-range::-webkit-slider-thumb {
 }
 .dlg-textarea {
   width: 100%;
-  min-height: 190px;
+  min-height: 170px;
   background: #181818;
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 12px;
@@ -674,8 +676,30 @@ input[type=range].sp-range::-webkit-slider-thumb {
 .dlg-hint {
   font-size: 12px;
   color: var(--muted);
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   line-height: 1.45;
+}
+.tool-strip {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.live-stamp-box {
+  background: rgba(29, 185, 84, 0.12);
+  border: 1px solid rgba(29, 185, 84, 0.35);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.live-stamp-line {
+  font-size: 14px;
+  font-weight: 700;
+  color: #FFF;
+  margin: 6px 0 10px;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 8px 10px;
+  border-radius: 8px;
 }
 .dlg-row { display: flex; gap: 10px; margin-top: 8px; }
 .dlg-row button { flex: 1; padding: 12px; border-radius: 999px; border: 0; font: 700 14px inherit; cursor: pointer; }
@@ -877,9 +901,9 @@ input[type=file] { display: none; }
 
     <div class="lyrics-card">
       <div class="lyrics-head">
-        <span class="lyrics-title">Testo</span>
+        <span class="lyrics-title">Testo sincronizzato</span>
         <div style="display:flex;gap:6px">
-          <button class="pill-btn" id="stampNowBtn" style="padding:5px 10px;font-size:11px">+ Segna tempo</button>
+          <button class="pill-btn" id="autoFetchFpBtn" style="padding:5px 10px;font-size:11px">Auto LRC</button>
           <button class="pill-btn" id="editLyricsFpBtn" style="padding:5px 10px;font-size:11px">Modifica</button>
         </div>
       </div>
@@ -938,13 +962,33 @@ input[type=file] { display: none; }
   </div>
 </div>
 
-<!-- DIALOG TESTO SINCRONIZZATO (LRC) -->
+<!-- DIALOG TESTO SINCRONIZZATO (AUTO LRC + IMPORTA FILE + SEGNA AL VOLO + PERSISTENZA OFFLINE) -->
 <div id="lyricsDlg" hidden>
   <div class="dlg-box">
     <div style="font-weight:800;font-size:17px;margin-bottom:6px" id="lyricsDlgHead">Testo brano</div>
     <div class="dlg-hint">
-      Usa il formato <b>[mm:ss.xx] strofa</b> per la sincronizzazione automatica (es. <code>[00:14.20] Prima barra</code>), oppure scrivi testo semplice riga per riga. Tocca una riga durante l'ascolto per saltare a quel punto.
+      Una volta salvato, il testo resta memorizzato su questo dispositivo anche <b>offline</b>. Usa <b>Cerca auto LRC</b>, <b>Importa .LRC/.TXT</b> oppure <b>Segna al volo</b> per assegnare i timestamp senza scriverli a mano.
     </div>
+
+    <div class="tool-strip">
+      <button class="pill-btn" id="fetchLrcBtn" style="padding:7px 12px;font-size:12px">Cerca auto LRC</button>
+      <button class="pill-btn" id="importLrcBtn" style="padding:7px 12px;font-size:12px">Importa .LRC / .TXT</button>
+      <button class="pill-btn" id="toggleLiveStampBtn" style="padding:7px 12px;font-size:12px">Segna al volo</button>
+    </div>
+
+    <div class="live-stamp-box" id="liveStampBox" hidden>
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700;color:var(--accent)">
+        <span id="liveStampProgress">Riga 0 / 0</span>
+        <span id="liveStampClock">00:00.00</span>
+      </div>
+      <div class="live-stamp-line" id="liveStampTarget">Incolla o carica un testo qui sotto per iniziare.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="pill-btn primary" id="stampLineBtn" style="padding:8px 14px;font-size:12px">Segna timestamp riga</button>
+        <button class="pill-btn" id="skipLineBtn" style="padding:8px 12px;font-size:12px">Salta riga</button>
+        <button class="pill-btn" id="resetStampIdxBtn" style="padding:8px 12px;font-size:12px">Ricomincia da riga 1</button>
+      </div>
+    </div>
+
     <textarea class="dlg-textarea" id="lyricsTextarea" placeholder="[00:10.00] Prima riga del testo&#10;[00:15.50] Seconda riga sincronizzata..."></textarea>
     <div class="dlg-row">
       <button id="lyricsCancel" style="background:#3E3E3E;color:#FFF">Annulla</button>
@@ -956,14 +1000,15 @@ input[type=file] { display: none; }
 <div id="toast" hidden></div>
 <input type="file" id="fileInput" accept="audio/*,.mp3,.m4a,.wav,.ogg,.aac,.flac,.zip,application/zip,application/x-zip-compressed" multiple>
 <input type="file" id="coverInput" accept="image/*">
+<input type="file" id="lrcFileInput" accept=".lrc,.txt,text/plain">
 <input type="file" id="impFile" accept=".json,application/json">
 <audio id="a" preload="auto" x-webkit-airplay="allow"></audio>
 
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 25;
-const SESSION_KEY = "musica_locale_state_v25";
+const APP_VERSION = 26;
+const SESSION_KEY = "musica_locale_state_v26";
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -978,6 +1023,9 @@ let prefetchedNext = { id: null, url: null, blob: null };
 let userPaused = false;
 let lastKnownPos = 0;
 let activeLyricIdx = -1;
+let editingSongRef = null;
+let liveStampIdx = 0;
+let liveStampTimer = null;
 
 /* --- PARSER E FORMATTAZIONE TESTI SINCRONIZZATI (LRC) --- */
 function formatLrcTimestamp(sec) {
@@ -1048,7 +1096,7 @@ function renderLyrics(forceRebuild = false) {
 
   const parsed = parseLyrics(s.lyrics || "");
   if (!parsed.lines.length) {
-    box.innerHTML = '<div class="lyrics-empty">Nessun testo salvato per questo brano.<br>Tocca <b>Modifica</b> per aggiungere testo o LRC sincronizzato.</div>';
+    box.innerHTML = '<div class="lyrics-empty">Nessun testo salvato per questo brano.<br>Tocca <b>Auto LRC</b> o <b>Modifica</b> per aggiungerlo (resterà salvato offline).</div>';
     box.dataset.songId = String(s.id);
     activeLyricIdx = -1;
     return;
@@ -1116,19 +1164,201 @@ function updateActiveLyric(forceScroll = false) {
   }
 }
 
-function openLyricsEditor(s) {
-  if (!s) return;
-  $("#lyricsDlgHead").textContent = `Testo • ${s.name}`;
-  $("#lyricsTextarea").value = s.lyrics || "";
-  $("#lyricsDlg").hidden = false;
+/* --- RICERCA AUTOMATICA LRC (LRCLIB) --- */
+function cleanQueryPart(str) {
+  return String(str || "")
+    .replace(/\(.*?\)|\[.*?\]/g, "")
+    .replace(/\b(official\s*(video|audio|lyric\s*video)|prod\.?\s*.*|feat\.?\s*.*|ft\.?\s*.*|remaster(ed)?|explicit|clean)\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
-  $("#lyricsCancel").onclick = () => { $("#lyricsDlg").hidden = true; };
-  $("#lyricsSave").onclick = () => {
-    s.lyrics = $("#lyricsTextarea").value.trim() || null;
-    saveSongMeta(s);
+async function fetchAutoLrcForSong(s) {
+  if (!s) return null;
+  const rawTitle = cleanQueryPart(s.name);
+  const rawArtist = cleanQueryPart(s.artist === "Artista locale" ? "" : s.artist);
+  const durSec = (s.id === curId && isFinite(audio.duration) && audio.duration > 0)
+    ? Math.round(audio.duration)
+    : null;
+
+  const pickBest = (candidates) => {
+    if (!Array.isArray(candidates) || !candidates.length) return null;
+    const syncedOnly = candidates.filter(c => c && typeof c.syncedLyrics === "string" && c.syncedLyrics.trim());
+    if (syncedOnly.length) {
+      if (durSec) {
+        syncedOnly.sort((a, b) => Math.abs((a.duration || 0) - durSec) - Math.abs((b.duration || 0) - durSec));
+      }
+      return syncedOnly[0].syncedLyrics.trim();
+    }
+    const plainOnly = candidates.filter(c => c && typeof c.plainLyrics === "string" && c.plainLyrics.trim());
+    return plainOnly.length ? plainOnly[0].plainLyrics.trim() : null;
+  };
+
+  try {
+    if (rawTitle && rawArtist) {
+      const params = new URLSearchParams({ track_name: rawTitle, artist_name: rawArtist });
+      if (durSec) params.set("duration", String(durSec));
+      const r1 = await fetch(`https://lrclib.net/api/get?${params.toString()}`);
+      if (r1.ok) {
+        const j1 = await r1.json();
+        const found1 = pickBest([j1]);
+        if (found1) return found1;
+      }
+    }
+
+    const qStr = [rawArtist, rawTitle].filter(Boolean).join(" ").trim() || s.name;
+    const r2 = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(qStr)}`);
+    if (r2.ok) {
+      const j2 = await r2.json();
+      const found2 = pickBest(j2);
+      if (found2) return found2;
+    }
+  } catch (e) {
+    return null;
+  }
+  return null;
+}
+
+/* --- MODALITÀ SEGNA TEMPO AL VOLO --- */
+function getLiveLines() {
+  return $("#lyricsTextarea").value.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+}
+
+function updateLiveStampUI() {
+  const lines = getLiveLines();
+  const clockEl = $("#liveStampClock");
+  const progEl = $("#liveStampProgress");
+  const targetEl = $("#liveStampTarget");
+  const nowSec = (editingSongRef && editingSongRef.id === curId)
+    ? (audio.currentTime || lastKnownPos || 0)
+    : (audio.currentTime || 0);
+
+  if (clockEl) clockEl.textContent = formatLrcTimestamp(nowSec).replace(/[\[\]]/g, "");
+  if (!lines.length) {
+    if (progEl) progEl.textContent = "Riga 0 / 0";
+    if (targetEl) targetEl.textContent = "Incolla il testo semplice nella casella sotto e premi Segna timestamp riga.";
+    return;
+  }
+  if (liveStampIdx >= lines.length) liveStampIdx = lines.length - 1;
+  if (liveStampIdx < 0) liveStampIdx = 0;
+
+  if (progEl) progEl.textContent = `Riga ${liveStampIdx + 1} / ${lines.length}`;
+  if (targetEl) targetEl.textContent = lines[liveStampIdx].replace(/^\[\d{1,2}:\d{2}(?:[.:]\d{1,3})?\]\s*/, "");
+}
+
+function startLiveClockLoop() {
+  stopLiveClockLoop();
+  updateLiveStampUI();
+  liveStampTimer = setInterval(updateLiveStampUI, 120);
+}
+
+function stopLiveClockLoop() {
+  if (liveStampTimer) {
+    clearInterval(liveStampTimer);
+    liveStampTimer = null;
+  }
+}
+
+function stampCurrentLiveLine(advance = true) {
+  const lines = getLiveLines();
+  if (!lines.length) {
+    toast("Inserisci prima almeno una riga di testo");
+    return;
+  }
+  if (liveStampIdx >= lines.length) liveStampIdx = lines.length - 1;
+  const nowSec = (editingSongRef && editingSongRef.id === curId)
+    ? (audio.currentTime || lastKnownPos || 0)
+    : (audio.currentTime || 0);
+  const tag = formatLrcTimestamp(nowSec);
+  const cleanLine = lines[liveStampIdx].replace(/^\[\d{1,2}:\d{2}(?:[.:]\d{1,3})?\]\s*/, "");
+  lines[liveStampIdx] = `${tag} ${cleanLine}`;
+  $("#lyricsTextarea").value = lines.join("\n");
+
+  if (advance && liveStampIdx + 1 < lines.length) {
+    liveStampIdx++;
+  }
+  updateLiveStampUI();
+  toast(`Segnato ${tag}`);
+}
+
+function openLyricsEditor(s, initialTextOverride = null) {
+  if (!s) return;
+  editingSongRef = s;
+  liveStampIdx = 0;
+  $("#lyricsDlgHead").textContent = `Testo • ${s.name}`;
+  $("#lyricsTextarea").value = initialTextOverride !== null ? initialTextOverride : (s.lyrics || "");
+  $("#liveStampBox").hidden = true;
+  stopLiveClockLoop();
+  $("#lyricsDlg").hidden = false;
+  updateLiveStampUI();
+
+  $("#fetchLrcBtn").onclick = async () => {
+    toast("Ricerca LRC in corso...");
+    const found = await fetchAutoLrcForSong(s);
+    if (found) {
+      $("#lyricsTextarea").value = found;
+      updateLiveStampUI();
+      toast("Testo LRC trovato! Tocca Salva testo per tenerlo offline");
+    } else {
+      toast("Nessun LRC automatico trovato: prova Importa o Segna al volo");
+    }
+  };
+
+  $("#importLrcBtn").onclick = () => $("#lrcFileInput").click();
+  $("#lrcFileInput").onchange = async e => {
+    const f = e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+    try {
+      const txt = await f.text();
+      if (!txt.trim()) { toast("File vuoto"); return; }
+      $("#lyricsTextarea").value = txt.trim();
+      updateLiveStampUI();
+      toast(`Caricato ${f.name}`);
+    } catch (err) {
+      toast("Impossibile leggere il file");
+    }
+  };
+
+  $("#toggleLiveStampBtn").onclick = () => {
+    const willOpen = $("#liveStampBox").hidden;
+    $("#liveStampBox").hidden = !willOpen;
+    if (willOpen) {
+      if (editingSongRef.id === curId && audio.paused && !userPaused) {
+        tryPlayElement();
+      }
+      startLiveClockLoop();
+    } else {
+      stopLiveClockLoop();
+    }
+  };
+
+  $("#stampLineBtn").onclick = () => stampCurrentLiveLine(true);
+  $("#skipLineBtn").onclick = () => {
+    const lines = getLiveLines();
+    if (liveStampIdx + 1 < lines.length) liveStampIdx++;
+    updateLiveStampUI();
+  };
+  $("#resetStampIdxBtn").onclick = () => {
+    liveStampIdx = 0;
+    updateLiveStampUI();
+  };
+
+  $("#lyricsCancel").onclick = () => {
+    stopLiveClockLoop();
+    editingSongRef = null;
+    $("#lyricsDlg").hidden = true;
+  };
+
+  $("#lyricsSave").onclick = async () => {
+    const cleaned = $("#lyricsTextarea").value.trim() || null;
+    s.lyrics = cleaned;
+    await saveSongMetaAsync(s);
+    stopLiveClockLoop();
+    editingSongRef = null;
     $("#lyricsDlg").hidden = true;
     renderLyrics(true);
-    toast(s.lyrics ? "Testo salvato" : "Testo rimosso");
+    toast(cleaned ? "Testo salvato permanentemente (anche offline)" : "Testo rimosso");
   };
 }
 
@@ -1423,12 +1653,25 @@ async function load() {
   }
 }
 
-function saveSongMeta(s) {
-  if (db && !s.mem && s.id > 0) {
-    const copy = { ...s };
-    delete copy.mem;
-    try { store("readwrite").put(copy); } catch (e) {}
+async function saveSongMetaAsync(s) {
+  if (!s || s.mem || !(s.id > 0)) return;
+  if (!db) {
+    try { db = await openDb(); } catch (e) { return; }
   }
+  const copy = { ...s };
+  delete copy.mem;
+  try {
+    await new Promise((res, rej) => {
+      const tx = db.transaction("songs", "readwrite");
+      tx.objectStore("songs").put(copy);
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+    });
+  } catch (e) {}
+}
+
+function saveSongMeta(s) {
+  saveSongMetaAsync(s);
 }
 
 function saveList(l) {
@@ -2051,7 +2294,7 @@ function openSongMenu(s, ctxIds, ctxLabel) {
   };
 
   addAct("Metti in coda", () => { upNext.push(s.id); renderQueue(); prefetchNextTrack(); persistPlaybackState(); toast("Aggiunto in coda"); });
-  addAct("Testo sincronizzato (LRC)", () => openLyricsEditor(s));
+  addAct("Testo sincronizzato (Auto LRC / Importa / Segna)", () => openLyricsEditor(s));
   addAct("Modifica titolo, artista o copertina", () => openEditDialog(s));
   lists.forEach(pl => {
     const inPl = pl.songIds.includes(s.id);
@@ -2235,14 +2478,20 @@ $("#editLyricsFpBtn").onclick = () => {
   if (s) openLyricsEditor(s);
 };
 
-$("#stampNowBtn").onclick = () => {
+$("#autoFetchFpBtn").onclick = async () => {
   const s = songs.find(x => x.id === curId);
   if (!s) return;
-  const tag = formatLrcTimestamp(audio.currentTime || 0);
-  const currentText = (s.lyrics || "").trim();
-  const nextText = currentText ? `${currentText}\n${tag} ` : `${tag} `;
-  openLyricsEditor({ ...s, lyrics: nextText });
-  toast(`Inserito timestamp ${tag}`);
+  toast("Ricerca LRC in corso...");
+  const found = await fetchAutoLrcForSong(s);
+  if (found) {
+    s.lyrics = found;
+    await saveSongMetaAsync(s);
+    renderLyrics(true);
+    toast("LRC trovato e salvato offline!");
+  } else {
+    openLyricsEditor(s);
+    toast("Nessun LRC automatico: aprilo qui per importare o segnare");
+  }
 };
 
 $("#miniLikeBtn").onclick = $("#fpLikeBtn").onclick = () => {
@@ -2362,7 +2611,8 @@ $("#impFile").onchange = async e => {
 
 $("#diagBtn").onclick = async () => {
   const pre = $("#diag"); pre.hidden = false;
-  let info = `Versione App: ${APP_VERSION}\nBrani salvati: ${songs.length}\nPlaylist: ${lists.length}\nDatabase attivo: ${db ? "Sì" : "No"}`;
+  const withLyrics = songs.filter(s => s.lyrics && s.lyrics.trim()).length;
+  let info = `Versione App: ${APP_VERSION}\nBrani salvati: ${songs.length}\nBrani con testo offline: ${withLyrics}\nPlaylist: ${lists.length}\nDatabase attivo: ${db ? "Sì" : "No"}`;
   if (navigator.storage?.estimate) {
     const q = await navigator.storage.estimate();
     info += `\nSpazio usato: ${(q.usage / 1048576).toFixed(1)} MB`;
