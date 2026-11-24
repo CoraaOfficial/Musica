@@ -1013,9 +1013,8 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 28;
-const SESSION_KEY = "musica_locale_state_v28";
-const DEVICE_PREF_KEY = "musica_locale_device_name_v28";
+const APP_VERSION = 29;
+const SESSION_KEY = "musica_locale_state_v29";
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -1037,38 +1036,16 @@ let isUserScrollingLyrics = false;
 let editingSongRef = null;
 let liveStampIdx = 0;
 let liveStampTimer = null;
-let customDeviceName = "";
-let externalOutputActive = false;
+let detectedDeviceLabel = "";
 let airplayWirelessActive = false;
 
-/* --- RILEVAMENTO DISPOSITIVO / AIRPLAY / CUFFIE --- */
-function loadSavedDeviceName() {
-  try {
-    customDeviceName = localStorage.getItem(DEVICE_PREF_KEY) || "";
-  } catch (e) {
-    customDeviceName = "";
-  }
-}
-
-function saveCustomDeviceName(name) {
-  customDeviceName = (name || "").trim();
-  try {
-    if (customDeviceName) localStorage.setItem(DEVICE_PREF_KEY, customDeviceName);
-    else localStorage.removeItem(DEVICE_PREF_KEY);
-  } catch (e) {}
-  updateDeviceButtonUI();
-}
-
+/* --- RILEVAMENTO AUTOMATICO DISPOSITIVO / AIRPLAY --- */
 async function refreshExternalAudioState() {
-  let hasExternalSink = false;
-  let sinkLabel = "";
+  let wireless = false;
+  let namedDevice = "";
 
   if (typeof audio.webkitCurrentPlaybackTargetIsWireless === "boolean") {
-    airplayWirelessActive = audio.webkitCurrentPlaybackTargetIsWireless;
-    if (airplayWirelessActive) {
-      hasExternalSink = true;
-      sinkLabel = "AirPlay";
-    }
+    wireless = audio.webkitCurrentPlaybackTargetIsWireless;
   }
 
   if (navigator.mediaDevices && typeof navigator.mediaDevices.enumerateDevices === "function") {
@@ -1076,39 +1053,42 @@ async function refreshExternalAudioState() {
       const devs = await navigator.mediaDevices.enumerateDevices();
       const outputs = devs.filter(d => d.kind === "audiooutput");
       const ext = outputs.find(d => {
-        const lbl = (d.label || "").toLowerCase();
+        const lbl = (d.label || "").trim();
+        if (!lbl) return false;
         const isDefaultOrBuiltIn = !d.deviceId || d.deviceId === "default" || d.deviceId === "communications"
-          || /built-?in|internal speaker|iphone|ipad|macbook|altoparlante/i.test(lbl);
-        return !isDefaultOrBuiltIn && Boolean(lbl);
+          || /^(built-?in|internal speaker|iphone|ipad|macbook|altoparlante|default|predefinito)/i.test(lbl);
+        return !isDefaultOrBuiltIn;
       });
       if (ext) {
-        hasExternalSink = true;
-        sinkLabel = ext.label.trim();
+        namedDevice = ext.label.trim();
       }
     } catch (e) {}
   }
 
-  if (!hasExternalSink && customDeviceName) {
-    hasExternalSink = true;
-    sinkLabel = customDeviceName;
-  }
-
-  externalOutputActive = hasExternalSink;
-  updateDeviceButtonUI(sinkLabel);
+  airplayWirelessActive = wireless;
+  detectedDeviceLabel = namedDevice;
+  updateDeviceButtonUI();
 }
 
-function updateDeviceButtonUI(detectedLabel = "") {
+function updateDeviceButtonUI() {
   const btn = $("#airBtn");
   const iconEl = $("#airIcon");
   const labelEl = $("#airLabel");
   if (!btn || !iconEl || !labelEl) return;
 
-  const activeName = customDeviceName || detectedLabel || (airplayWirelessActive ? "AirPlay" : (externalOutputActive ? "Cuffie" : ""));
-  const connected = Boolean(activeName || externalOutputActive || airplayWirelessActive);
-
-  btn.classList.toggle("device-connected", connected);
-  iconEl.innerHTML = connected ? SVG_HEADPHONES : SVG_TV_AIRPLAY;
-  labelEl.textContent = connected ? (activeName || "Cuffie") : "Dispositivi / AirPlay";
+  if (detectedDeviceLabel) {
+    btn.classList.add("device-connected");
+    iconEl.innerHTML = SVG_HEADPHONES;
+    labelEl.textContent = detectedDeviceLabel;
+  } else if (airplayWirelessActive) {
+    btn.classList.add("device-connected");
+    iconEl.innerHTML = SVG_HEADPHONES;
+    labelEl.textContent = "Dispositivo connesso";
+  } else {
+    btn.classList.remove("device-connected");
+    iconEl.innerHTML = SVG_TV_AIRPLAY;
+    labelEl.textContent = "Dispositivi / AirPlay";
+  }
 }
 
 /* --- PARSER E FORMATTAZIONE TESTI SINCRONIZZATI (LRC) --- */
@@ -1709,7 +1689,6 @@ const lstore = m => db.transaction("lists", m).objectStore("lists");
 const rq = r => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
 
 async function load() {
-  loadSavedDeviceName();
   refreshExternalAudioState();
   const h = new Date().getHours();
   $("#greeting").textContent = h < 12 ? "Buongiorno" : h < 18 ? "Buon pomeriggio" : "Buonasera";
@@ -2730,44 +2709,10 @@ window.addEventListener("pagehide", () => {
 });
 
 $("#airBtn").onclick = () => {
-  if (audio.webkitShowPlaybackTargetPicker) {
+  refreshExternalAudioState();
+  if (typeof audio.webkitShowPlaybackTargetPicker === "function") {
     audio.webkitShowPlaybackTargetPicker();
   }
-  const box = $("#sheetBox");
-  box.innerHTML = `
-    <div class="sheet-handle"></div>
-    <div class="sheet-header">
-      <div class="cover-sm">${customDeviceName || externalOutputActive || airplayWirelessActive ? SVG_HEADPHONES : SVG_TV_AIRPLAY}</div>
-      <div class="t-info">
-        <div class="t-title">${esc(customDeviceName || (airplayWirelessActive ? "AirPlay attivo" : (externalOutputActive ? "Dispositivo esterno connesso" : "Dispositivi / AirPlay")))}</div>
-        <div class="t-sub">Su iOS il browser non espone il nome Bluetooth: puoi impostarlo qui o aprire il Centro di Controllo.</div>
-      </div>
-    </div>
-  `;
-  const addAct = (txt, fn) => {
-    const b = document.createElement("button");
-    b.className = "act";
-    b.textContent = txt;
-    b.onclick = () => { $("#sheet").hidden = true; fn(); };
-    box.append(b);
-  };
-  addAct("Imposta nome dispositivo connesso (es. AirPods)", () => {
-    const nextName = prompt("Nome dispositivo connesso (lascia vuoto per ripristinare Dispositivi / AirPlay):", customDeviceName || "");
-    if (nextName !== null) {
-      saveCustomDeviceName(nextName);
-      toast(nextName.trim() ? `Dispositivo impostato: ${nextName.trim()}` : "Ripristinato Dispositivi / AirPlay");
-    }
-  });
-  if (customDeviceName) {
-    addAct("Rimuovi nome dispositivo connesso", () => {
-      saveCustomDeviceName("");
-      toast("Nome dispositivo rimosso");
-    });
-  }
-  addAct("Come usare AirPlay / Bluetooth dal Centro di Controllo", () => {
-    toast("Scorri in basso a destra per aprire il Centro di Controllo");
-  });
-  $("#sheet").hidden = false;
 };
 
 /* --- BACKUP & DIAGNOSTICA --- */
