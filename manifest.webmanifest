@@ -1,10 +1,17 @@
 {
-  "name": "Le mie canzoni",
-  "short_name": "Musica",
+  "name": "Hush",
+  "short_name": "Hush",
+  "description": "Lettore musicale locale offline con playlist, coda riordinabile e testi sincronizzati LRC.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#121212",
-  "theme_color": "#121212",
-  "icons": [{ "src": "IMG_1550.jpeg", "sizes": "512x512", "type": "image/png" }]
+  "background_color": "#0d0d0d",
+  "theme_color": "#0d0d0d",
+  "icons": [
+    {
+      "src": "IMG_1550.jpeg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
 }
