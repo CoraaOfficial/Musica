@@ -582,7 +582,7 @@ input[type=range].sp-range::-webkit-slider-thumb {
   margin-bottom: 14px;
 }
 
-/* Coda in sovrimpressione stile Spotify (scorrimento verticale puro, senza dissolvenza) */
+/* Coda in sovrimpressione stile Spotify */
 #queueOverlay {
   position: fixed;
   inset: 0;
@@ -978,8 +978,8 @@ input[type=file] { display: none; }
       <div class="settings-card">
         <div style="font-weight:700;color:#FFF;margin-bottom:8px">Backup e Stato</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="pill-btn" id="expBtn">Esporta backup playlist</button>
-          <button class="pill-btn" id="impBtn">Importa backup</button>
+          <button class="pill-btn" id="expBtn">Backup totale (brani + tutto)</button>
+          <button class="pill-btn" id="impBtn">Importa backup totale</button>
           <button class="pill-btn" id="diagBtn">Stato memoria</button>
         </div>
         <div id="ver" style="margin-top:10px;font-size:12px"></div>
@@ -1213,8 +1213,8 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 33;
-const SESSION_KEY = "hush_locale_state_v33";
+const APP_VERSION = 35;
+const SESSION_KEY = "hush_locale_state_v35";
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -1765,6 +1765,25 @@ async function extractAudioFromZip(zipFile) {
 }
 
 /* --- PARSER METADATI ID3v2 NATIVO (Titolo, Artista, Copertina, Testo USLT) --- */
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let bin = "";
+  for (let k = 0; k < bytes.length; k += 8192) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(k, k + 8192));
+  }
+  return btoa(bin);
+}
+
+function base64ToArrayBuffer(b64) {
+  const bin = atob(b64);
+  const len = bin.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = bin.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
 function parseID3(buffer) {
   const res = { title: null, artist: null, cover: null, lyrics: null };
   try {
@@ -2712,7 +2731,7 @@ function renderQueue() {
   });
 }
 
-/* --- APERTURA / ESTENSIONE / CHIUSURA FLUIDA CODA IN SOVRIMPRESSIONE (SOLO TRASLAZIONE VERTICALE) --- */
+/* --- APERTURA / ESTENSIONE / CHIUSURA FLUIDA CODA IN SOVRIMPRESSIONE --- */
 let queueHideTimer = null;
 
 function setQueueExpandedSmooth(expanded) {
@@ -2802,7 +2821,6 @@ $("#queueOverlay").onclick = e => {
   }
 };
 
-// Trascinamento fluido con follow del dito e scatto morbido al rilascio (senza sfumatura)
 let qsStartY = 0, qsLastDy = 0, qsPointerId = null;
 $("#qsDragZone").addEventListener("pointerdown", e => {
   if (e.target.closest("button")) return;
@@ -3218,34 +3236,175 @@ $("#airBtn").onclick = () => {
   }
 };
 
-/* --- BACKUP & DIAGNOSTICA --- */
-$("#expBtn").onclick = () => {
-  const data = { v: 2, playlists: lists, liked: songs.filter(s => s.liked).map(s => s.orig || s.name) };
+/* --- BACKUP TOTALE (BRANI AUDIO + TESTI + PLAYLIST CON BRANI + LIKE + IMPOSTAZIONI) --- */
+function makeTrackSignature(s) {
+  return `${s.orig || s.name}__${s.size || 0}`;
+}
+
+$("#expBtn").onclick = async () => {
+  toast("Preparazione backup completo...");
+  const exportedSongs = [];
+  const idToSig = new Map();
+
+  for (const s of songs) {
+    const sig = makeTrackSignature(s);
+    idToSig.set(s.id, sig);
+    let audioB64 = null;
+    const blob = await getSongBlob(s.id);
+    if (blob) {
+      const buf = await blob.arrayBuffer();
+      audioB64 = arrayBufferToBase64(buf);
+    }
+    exportedSongs.push({
+      sig,
+      orig: s.orig || s.name,
+      name: s.name,
+      artist: s.artist || "Artista locale",
+      cover: s.cover || null,
+      lyrics: s.lyrics || null,
+      liked: Boolean(s.liked),
+      size: s.size || (blob ? blob.size : 0),
+      type: s.type || (blob && blob.type) || "audio/mpeg",
+      audioB64
+    });
+  }
+
+  const exportedPlaylists = lists.map(pl => ({
+    name: pl.name,
+    songSigs: pl.songIds.map(id => idToSig.get(id)).filter(Boolean)
+  }));
+
+  const payload = {
+    v: 4,
+    app: "Hush",
+    exportedAt: new Date().toISOString(),
+    settings: { shuffle, repeatMode },
+    songs: exportedSongs,
+    playlists: exportedPlaylists
+  };
+
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
-  a.download = "hush-backup.json";
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(payload)], { type: "application/json" }));
+  a.download = "hush-backup-totale.json";
   a.click();
+  toast("Backup totale esportato");
 };
 
 $("#impBtn").onclick = () => $("#impFile").click();
 $("#impFile").onchange = async e => {
-  const f = e.target.files[0]; e.target.value = "";
+  const f = e.target.files[0];
+  e.target.value = "";
   if (!f) return;
+  toast("Ripristino backup in corso...");
+
   try {
     const d = JSON.parse(await f.text());
-    if (Array.isArray(d.liked)) {
-      songs.forEach(s => { if (d.liked.includes(s.orig || s.name)) { s.liked = true; saveSongMeta(s); } });
+
+    if (d.settings) {
+      if (typeof d.settings.shuffle === "boolean") shuffle = d.settings.shuffle;
+      if (typeof d.settings.repeatMode === "number") repeatMode = d.settings.repeatMode;
     }
-    for (const p of (d.playlists || [])) {
-      if (!lists.some(x => x.name === p.name)) {
-        const pl = { name: p.name, songIds: p.songIds || [] };
-        if (db) pl.id = await rq(lstore("readwrite").add(pl));
-        lists.push(pl);
+
+    const sigToSongId = new Map();
+    for (const curS of songs) {
+      sigToSongId.set(makeTrackSignature(curS), curS.id);
+    }
+
+    const incomingSongs = Array.isArray(d.songs) ? d.songs : (Array.isArray(d.tracksMeta) ? d.tracksMeta : []);
+    for (const item of incomingSongs) {
+      const sig = item.sig || `${item.orig || item.name}__${item.size || 0}`;
+      let targetSong = songs.find(s => makeTrackSignature(s) === sig)
+        || songs.find(s => (s.orig || s.name) === (item.orig || item.name))
+        || null;
+
+      if (!targetSong && item.audioB64) {
+        const buf = base64ToArrayBuffer(item.audioB64);
+        const rec = {
+          name: item.name || item.orig || "Brano",
+          artist: item.artist || "Artista locale",
+          cover: item.cover || null,
+          lyrics: item.lyrics || null,
+          liked: Boolean(item.liked),
+          orig: item.orig || item.name || "Brano",
+          size: item.size || buf.byteLength,
+          type: item.type || "audio/mpeg",
+          addedAt: Date.now()
+        };
+        if (await writeSongToDb(rec, buf)) {
+          songs.push(rec);
+          targetSong = rec;
+        } else {
+          rec.id = tempId--;
+          rec.mem = new Blob([buf], { type: rec.type });
+          songs.push(rec);
+          targetSong = rec;
+        }
+      } else if (targetSong) {
+        if (item.name) targetSong.name = item.name;
+        if (item.artist) targetSong.artist = item.artist;
+        if (item.cover) targetSong.cover = item.cover;
+        if (item.lyrics !== undefined) targetSong.lyrics = item.lyrics;
+        if (typeof item.liked === "boolean") targetSong.liked = item.liked;
+        await saveSongMetaAsync(targetSong);
+      }
+
+      if (targetSong) {
+        sigToSongId.set(sig, targetSong.id);
       }
     }
+
+    if (Array.isArray(d.liked)) {
+      for (const s of songs) {
+        if (d.liked.includes(s.orig || s.name)) {
+          s.liked = true;
+          await saveSongMetaAsync(s);
+        }
+      }
+    }
+
+    for (const p of (d.playlists || [])) {
+      const rawRefs = Array.isArray(p.songSigs) ? p.songSigs : (Array.isArray(p.songKeys) ? p.songKeys : []);
+      const resolvedIds = rawRefs
+        .map(ref => {
+          if (typeof ref === "string") {
+            if (sigToSongId.has(ref)) return sigToSongId.get(ref);
+            const foundByOrig = songs.find(s => (s.orig || s.name) === ref || s.name === ref);
+            return foundByOrig ? foundByOrig.id : null;
+          }
+          if (ref && typeof ref === "object") {
+            const refSig = `${ref.orig || ref.name}__${ref.size || 0}`;
+            if (sigToSongId.has(refSig)) return sigToSongId.get(refSig);
+            const foundObj = songs.find(s => (s.orig || s.name) === ref.orig || s.name === ref.name);
+            return foundObj ? foundObj.id : null;
+          }
+          return null;
+        })
+        .filter(Boolean);
+
+      const uniqueIds = [...new Set(resolvedIds)];
+      let existing = lists.find(x => x.name === p.name);
+      if (!existing) {
+        const pl = { name: p.name, songIds: uniqueIds };
+        if (db) {
+          try { pl.id = await rq(lstore("readwrite").add(pl)); }
+          catch (err) { pl.id = tempId--; pl.mem = true; }
+        } else {
+          pl.id = tempId--;
+          pl.mem = true;
+        }
+        lists.push(pl);
+      } else {
+        existing.songIds = [...new Set([...existing.songIds, ...uniqueIds])];
+        saveList(existing);
+      }
+    }
+
     renderAll();
-    toast("Backup ripristinato");
-  } catch (err) { toast("File non valido"); }
+    persistPlaybackState();
+    toast("Tutto ripristinato come prima!");
+  } catch (err) {
+    toast("Errore durante il ripristino del backup");
+  }
 };
 
 $("#diagBtn").onclick = async () => {
