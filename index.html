@@ -581,18 +581,14 @@ input[type=range].sp-range::-webkit-slider-thumb {
   margin-bottom: 14px;
 }
 
-/* Coda in sovrimpressione stile Spotify (transizione fluida e trascinamento reattivo) */
+/* Coda in sovrimpressione stile Spotify (scorrimento verticale puro, senza dissolvenza) */
 #queueOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.65);
+  background: rgba(0, 0, 0, 0.58);
   z-index: 45;
   display: flex;
   align-items: flex-end;
-  opacity: 0;
-  transition: opacity .32s cubic-bezier(0.22, 1, 0.36, 1), background .32s cubic-bezier(0.22, 1, 0.36, 1);
-}
-#queueOverlay.visible {
   opacity: 1;
 }
 #queueOverlay.expanded {
@@ -615,16 +611,15 @@ input[type=range].sp-range::-webkit-slider-thumb {
   will-change: transform, height;
   box-shadow: 0 -14px 42px rgba(0,0,0,0.85);
   transition:
-    transform .36s cubic-bezier(0.22, 1, 0.36, 1),
-    height .38s cubic-bezier(0.22, 1, 0.36, 1),
-    border-radius .34s cubic-bezier(0.22, 1, 0.36, 1),
-    max-width .34s cubic-bezier(0.22, 1, 0.36, 1);
+    transform .34s cubic-bezier(0.22, 1, 0.36, 1),
+    height .36s cubic-bezier(0.22, 1, 0.36, 1),
+    border-radius .32s cubic-bezier(0.22, 1, 0.36, 1),
+    max-width .32s cubic-bezier(0.22, 1, 0.36, 1);
 }
 #queueOverlay.visible #queueSheet {
   transform: translate3d(0, 0, 0);
 }
-#queueOverlay.dragging #queueSheet,
-#queueOverlay.dragging {
+#queueOverlay.dragging #queueSheet {
   transition: none !important;
 }
 #queueOverlay.expanded #queueSheet {
@@ -1217,8 +1212,8 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 31;
-const SESSION_KEY = "musica_locale_state_v31";
+const APP_VERSION = 32;
+const SESSION_KEY = "musica_locale_state_v32";
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -2716,7 +2711,7 @@ function renderQueue() {
   });
 }
 
-/* --- APERTURA / ESTENSIONE / CHIUSURA FLUIDA CODA IN SOVRIMPRESSIONE --- */
+/* --- APERTURA / ESTENSIONE / CHIUSURA FLUIDA CODA IN SOVRIMPRESSIONE (SOLO TRASLAZIONE VERTICALE) --- */
 let queueHideTimer = null;
 
 function setQueueExpandedSmooth(expanded) {
@@ -2724,7 +2719,6 @@ function setQueueExpandedSmooth(expanded) {
   const sheet = $("#queueSheet");
   ov.classList.remove("dragging");
   sheet.style.transform = "";
-  ov.style.opacity = "";
 
   const startHeight = sheet.getBoundingClientRect().height;
   ov.classList.toggle("expanded", Boolean(expanded));
@@ -2767,12 +2761,10 @@ function setQueueOverlayOpen(open, expanded = false) {
     ov.classList.toggle("expanded", Boolean(expanded));
     sheet.style.height = "";
     sheet.style.transform = "translate3d(0, 100%, 0)";
-    ov.style.opacity = "0";
     ov.hidden = false;
     ov.getBoundingClientRect();
     requestAnimationFrame(() => {
       sheet.style.transform = "";
-      ov.style.opacity = "";
       ov.classList.add("visible");
     });
   } else {
@@ -2781,14 +2773,12 @@ function setQueueOverlayOpen(open, expanded = false) {
     sheet.style.height = "";
     ov.classList.remove("visible");
     sheet.style.transform = "translate3d(0, 100%, 0)";
-    ov.style.opacity = "0";
     queueHideTimer = setTimeout(() => {
       ov.hidden = true;
       ov.classList.remove("expanded");
       sheet.style.transform = "";
-      ov.style.opacity = "";
       queueHideTimer = null;
-    }, 360);
+    }, 340);
   }
 }
 
@@ -2811,7 +2801,7 @@ $("#queueOverlay").onclick = e => {
   }
 };
 
-// Trascinamento fluido con follow del dito e scatto morbido al rilascio
+// Trascinamento fluido con follow del dito e scatto morbido al rilascio (senza sfumatura)
 let qsStartY = 0, qsLastDy = 0, qsPointerId = null;
 $("#qsDragZone").addEventListener("pointerdown", e => {
   if (e.target.closest("button")) return;
@@ -2827,7 +2817,6 @@ $("#qsDragZone").addEventListener("pointerdown", e => {
 
 $("#qsDragZone").addEventListener("pointermove", e => {
   if (e.pointerId !== qsPointerId) return;
-  const ov = $("#queueOverlay");
   const sheet = $("#queueSheet");
   const dy = e.clientY - qsStartY;
   qsLastDy = dy;
@@ -2835,12 +2824,9 @@ $("#qsDragZone").addEventListener("pointermove", e => {
   if (dy > 0) {
     const clamped = Math.min(dy, window.innerHeight * 0.85);
     sheet.style.transform = `translate3d(0, ${clamped}px, 0)`;
-    const progress = Math.min(clamped / (sheet.getBoundingClientRect().height * 0.45), 1);
-    ov.style.opacity = String(Math.max(0.15, 1 - progress * 0.85));
   } else {
     const pullUp = Math.max(dy, -220);
     sheet.style.transform = `translate3d(0, ${pullUp * 0.45}px, 0)`;
-    ov.style.opacity = "1";
   }
 });
 
@@ -2860,15 +2846,12 @@ const finishQueueDrag = e => {
     setQueueOverlayOpen(false, false);
   } else if (!isExp && dy < -70) {
     sheet.style.transform = "";
-    ov.style.opacity = "";
     setQueueExpandedSmooth(true);
   } else if (isExp && dy > 65) {
     sheet.style.transform = "";
-    ov.style.opacity = "";
     setQueueExpandedSmooth(false);
   } else {
     sheet.style.transform = "";
-    ov.style.opacity = "";
   }
 };
 
