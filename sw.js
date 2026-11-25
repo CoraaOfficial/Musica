@@ -1,4 +1,4 @@
-const CACHE = "canzoni-v31";
+const CACHE = "canzoni-v32";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icon.png"];
 
 self.addEventListener("install", e => {
