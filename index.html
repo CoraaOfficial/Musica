@@ -1207,14 +1207,14 @@ input[type=file] { display: none; }
 <input type="file" id="fileInput" accept="audio/*,.mp3,.m4a,.wav,.ogg,.aac,.flac,.zip,application/zip,application/x-zip-compressed" multiple>
 <input type="file" id="coverInput" accept="image/*">
 <input type="file" id="lrcFileInput" accept=".lrc,.txt,text/plain">
-<input type="file" id="impFile" accept=".zip,.json,application/zip,application/x-zip-compressed,application/json">
+<input type="file" id="impFile" accept=".zip,.json,application/zip,application/x-zip-compressed,application/json" multiple>
 <audio id="a" preload="auto" x-webkit-airplay="allow"></audio>
 
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 36;
-const SESSION_KEY = "hush_locale_state_v36";
+const APP_VERSION = 37;
+const SESSION_KEY = "hush_locale_state_v37";
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -3378,12 +3378,40 @@ async function extractAllFilesFromZip(zipFile) {
   return out;
 }
 
-/* --- BACKUP TOTALE IN ARCHIVIO ZIP CON FILE SEPARATI --- */
+/* --- BACKUP TOTALE IN PIÙ ARCHIVI ZIP DA 60 BRANI --- */
+const ZIP_CHUNK_SIZE = 60;
+
 function makeTrackSignature(s) {
   return `${s.orig || s.name}__${s.size || 0}`;
 }
 
-const pauseTick = () => new Promise(r => setTimeout(r, 25));
+const pauseTick = ms => new Promise(r => setTimeout(r, ms));
+
+function buildManifestObject(idToSig, partIndex, totalParts, chunkStart, chunkEnd) {
+  return {
+    v: 6,
+    app: "Hush",
+    part: partIndex,
+    totalParts,
+    trackRange: [chunkStart, chunkEnd],
+    exportedAt: new Date().toISOString(),
+    settings: { shuffle, repeatMode },
+    liked: songs.filter(s => s.liked).map(s => s.orig || s.name),
+    playlists: lists.map(pl => ({
+      name: pl.name,
+      songSigs: pl.songIds.map(id => idToSig.get(id)).filter(Boolean)
+    }))
+  };
+}
+
+function triggerBlobDownload(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 15000);
+}
 
 $("#expBtn").onclick = async () => {
   if (!songs.length && !lists.length) {
@@ -3392,166 +3420,181 @@ $("#expBtn").onclick = async () => {
   }
 
   const enc = new TextEncoder();
-  const zipEntries = [];
   const idToSig = new Map();
-
-  for (let i = 0; i < songs.length; i++) {
-    const s = songs[i];
-    toast(`Esportazione brano ${i + 1}/${songs.length} nello ZIP...`);
-    const sig = makeTrackSignature(s);
-    idToSig.set(s.id, sig);
-
-    let audioB64 = null;
-    const blob = await getSongBlob(s.id);
-    if (blob) {
-      const buf = await blob.arrayBuffer();
-      audioB64 = arrayBufferToBase64(buf);
-    }
-
-    const trackPayload = {
-      sig,
-      orig: s.orig || s.name,
-      name: s.name,
-      artist: s.artist || "Artista locale",
-      cover: s.cover || null,
-      lyrics: s.lyrics || null,
-      liked: Boolean(s.liked),
-      size: s.size || (blob ? blob.size : 0),
-      type: s.type || (blob && blob.type) || "audio/mpeg",
-      audioB64
-    };
-
-    const fileNum = String(i + 1).padStart(4, "0");
-    zipEntries.push({
-      name: `tracks/track_${fileNum}.json`,
-      bytes: enc.encode(JSON.stringify(trackPayload))
-    });
-
-    await pauseTick();
+  for (const s of songs) {
+    idToSig.set(s.id, makeTrackSignature(s));
   }
 
-  const manifestObj = {
-    v: 5,
-    app: "Hush",
-    exportedAt: new Date().toISOString(),
-    settings: { shuffle, repeatMode },
-    playlists: lists.map(pl => ({
-      name: pl.name,
-      songSigs: pl.songIds.map(id => idToSig.get(id)).filter(Boolean)
-    }))
-  };
+  const totalParts = Math.max(1, Math.ceil(songs.length / ZIP_CHUNK_SIZE));
 
-  zipEntries.unshift({
-    name: "manifest.json",
-    bytes: enc.encode(JSON.stringify(manifestObj, null, 2))
-  });
+  for (let part = 0; part < totalParts; part++) {
+    const start = part * ZIP_CHUNK_SIZE;
+    const end = Math.min(songs.length, start + ZIP_CHUNK_SIZE);
+    let zipEntries = [];
 
-  toast("Creazione archivio ZIP...");
-  const zipBlob = buildZipBlob(zipEntries);
-  const url = URL.createObjectURL(zipBlob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "hush-backup-totale.zip";
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 15000);
-  toast("Archivio hush-backup-totale.zip pronto!");
+    for (let i = start; i < end; i++) {
+      const s = songs[i];
+      toast(`Parte ${part + 1}/${totalParts} • Brano ${i + 1}/${songs.length}...`);
+
+      let audioB64 = null;
+      const blob = await getSongBlob(s.id);
+      if (blob) {
+        const buf = await blob.arrayBuffer();
+        audioB64 = arrayBufferToBase64(buf);
+      }
+
+      const trackPayload = {
+        sig: idToSig.get(s.id),
+        orig: s.orig || s.name,
+        name: s.name,
+        artist: s.artist || "Artista locale",
+        cover: s.cover || null,
+        lyrics: s.lyrics || null,
+        liked: Boolean(s.liked),
+        size: s.size || (blob ? blob.size : 0),
+        type: s.type || (blob && blob.type) || "audio/mpeg",
+        audioB64
+      };
+
+      const fileNum = String(i + 1).padStart(4, "0");
+      zipEntries.push({
+        name: `tracks/track_${fileNum}.json`,
+        bytes: enc.encode(JSON.stringify(trackPayload))
+      });
+
+      await pauseTick(25);
+    }
+
+    const manifestObj = buildManifestObject(idToSig, part + 1, totalParts, start + 1, end);
+    zipEntries.unshift({
+      name: "manifest.json",
+      bytes: enc.encode(JSON.stringify(manifestObj, null, 2))
+    });
+
+    toast(`Salvataggio parte ${part + 1}/${totalParts}...`);
+    const zipBlob = buildZipBlob(zipEntries);
+    const fileName = totalParts === 1
+      ? "hush-backup-totale.zip"
+      : `hush-backup-totale-parte-${part + 1}-di-${totalParts}.zip`;
+    triggerBlobDownload(zipBlob, fileName);
+
+    zipEntries.length = 0;
+    zipEntries = null;
+    await pauseTick(650);
+  }
+
+  toast(totalParts > 1 ? `Completati ${totalParts} file ZIP!` : "Archivio pronto!");
 };
 
 $("#impBtn").onclick = () => $("#impFile").click();
 $("#impFile").onchange = async e => {
-  const f = e.target.files[0];
+  const picked = [...(e.target.files || [])];
   e.target.value = "";
-  if (!f) return;
+  if (!picked.length) return;
+
+  picked.sort((a, b) => a.name.localeCompare(b.name, "it", { numeric: true }));
+
+  const sigToSongId = new Map();
+  for (const curS of songs) {
+    sigToSongId.set(makeTrackSignature(curS), curS.id);
+  }
+  const pendingPlaylists = [];
 
   try {
-    let manifest = null;
-    const incomingSongs = [];
+    for (let fIdx = 0; fIdx < picked.length; fIdx++) {
+      const f = picked[fIdx];
+      let manifest = null;
+      let incomingSongs = [];
 
-    if (f.name.toLowerCase().endsWith(".zip") || f.type.includes("zip")) {
-      toast("Lettura archivio ZIP...");
-      const filesInZip = await extractAllFilesFromZip(f);
-      const manifestEntry = filesInZip.find(x => x.name === "manifest.json" || x.name.endsWith("/manifest.json"));
-      if (manifestEntry) {
-        manifest = JSON.parse(manifestEntry.text);
-      }
-      const trackEntries = filesInZip
-        .filter(x => x.name.includes("track_") && x.name.endsWith(".json"))
-        .sort((a, b) => a.name.localeCompare(b.name));
-
-      for (let i = 0; i < trackEntries.length; i++) {
-        toast(`Ripristino brano ${i + 1}/${trackEntries.length}...`);
-        incomingSongs.push(JSON.parse(trackEntries[i].text));
-        await pauseTick();
-      }
-    } else {
-      const d = JSON.parse(await f.text());
-      manifest = d;
-      if (Array.isArray(d.songs)) incomingSongs.push(...d.songs);
-      else if (Array.isArray(d.tracksMeta)) incomingSongs.push(...d.tracksMeta);
-    }
-
-    if (manifest && manifest.settings) {
-      if (typeof manifest.settings.shuffle === "boolean") shuffle = manifest.settings.shuffle;
-      if (typeof manifest.settings.repeatMode === "number") repeatMode = manifest.settings.repeatMode;
-    }
-
-    const sigToSongId = new Map();
-    for (const curS of songs) {
-      sigToSongId.set(makeTrackSignature(curS), curS.id);
-    }
-
-    for (const item of incomingSongs) {
-      const sig = item.sig || `${item.orig || item.name}__${item.size || 0}`;
-      let targetSong = songs.find(s => makeTrackSignature(s) === sig)
-        || songs.find(s => (s.orig || s.name) === (item.orig || item.name))
-        || null;
-
-      if (!targetSong && item.audioB64) {
-        const buf = base64ToArrayBuffer(item.audioB64);
-        const rec = {
-          name: item.name || item.orig || "Brano",
-          artist: item.artist || "Artista locale",
-          cover: item.cover || null,
-          lyrics: item.lyrics || null,
-          liked: Boolean(item.liked),
-          orig: item.orig || item.name || "Brano",
-          size: item.size || buf.byteLength,
-          type: item.type || "audio/mpeg",
-          addedAt: Date.now()
-        };
-        if (await writeSongToDb(rec, buf)) {
-          songs.push(rec);
-          targetSong = rec;
-        } else {
-          rec.id = tempId--;
-          rec.mem = new Blob([buf], { type: rec.type });
-          songs.push(rec);
-          targetSong = rec;
+      if (f.name.toLowerCase().endsWith(".zip") || f.type.includes("zip")) {
+        toast(`Lettura ZIP ${fIdx + 1}/${picked.length}...`);
+        const filesInZip = await extractAllFilesFromZip(f);
+        const manifestEntry = filesInZip.find(x => x.name === "manifest.json" || x.name.endsWith("/manifest.json"));
+        if (manifestEntry) {
+          manifest = JSON.parse(manifestEntry.text);
         }
-      } else if (targetSong) {
-        if (item.name) targetSong.name = item.name;
-        if (item.artist) targetSong.artist = item.artist;
-        if (item.cover) targetSong.cover = item.cover;
-        if (item.lyrics !== undefined) targetSong.lyrics = item.lyrics;
-        if (typeof item.liked === "boolean") targetSong.liked = item.liked;
-        await saveSongMetaAsync(targetSong);
+        const trackEntries = filesInZip
+          .filter(x => x.name.includes("track_") && x.name.endsWith(".json"))
+          .sort((a, b) => a.name.localeCompare(b.name));
+
+        for (let i = 0; i < trackEntries.length; i++) {
+          toast(`ZIP ${fIdx + 1}/${picked.length} • Brano ${i + 1}/${trackEntries.length}...`);
+          incomingSongs.push(JSON.parse(trackEntries[i].text));
+          await pauseTick(25);
+        }
+      } else {
+        const d = JSON.parse(await f.text());
+        manifest = d;
+        if (Array.isArray(d.songs)) incomingSongs.push(...d.songs);
+        else if (Array.isArray(d.tracksMeta)) incomingSongs.push(...d.tracksMeta);
       }
 
-      if (targetSong) {
-        sigToSongId.set(sig, targetSong.id);
+      if (manifest && manifest.settings) {
+        if (typeof manifest.settings.shuffle === "boolean") shuffle = manifest.settings.shuffle;
+        if (typeof manifest.settings.repeatMode === "number") repeatMode = manifest.settings.repeatMode;
       }
-    }
 
-    if (manifest && Array.isArray(manifest.liked)) {
-      for (const s of songs) {
-        if (manifest.liked.includes(s.orig || s.name)) {
-          s.liked = true;
-          await saveSongMetaAsync(s);
+      for (const item of incomingSongs) {
+        const sig = item.sig || `${item.orig || item.name}__${item.size || 0}`;
+        let targetSong = songs.find(s => makeTrackSignature(s) === sig)
+          || songs.find(s => (s.orig || s.name) === (item.orig || item.name))
+          || null;
+
+        if (!targetSong && item.audioB64) {
+          const buf = base64ToArrayBuffer(item.audioB64);
+          const rec = {
+            name: item.name || item.orig || "Brano",
+            artist: item.artist || "Artista locale",
+            cover: item.cover || null,
+            lyrics: item.lyrics || null,
+            liked: Boolean(item.liked),
+            orig: item.orig || item.name || "Brano",
+            size: item.size || buf.byteLength,
+            type: item.type || "audio/mpeg",
+            addedAt: Date.now()
+          };
+          if (await writeSongToDb(rec, buf)) {
+            songs.push(rec);
+            targetSong = rec;
+          } else {
+            rec.id = tempId--;
+            rec.mem = new Blob([buf], { type: rec.type });
+            songs.push(rec);
+            targetSong = rec;
+          }
+        } else if (targetSong) {
+          if (item.name) targetSong.name = item.name;
+          if (item.artist) targetSong.artist = item.artist;
+          if (item.cover) targetSong.cover = item.cover;
+          if (item.lyrics !== undefined) targetSong.lyrics = item.lyrics;
+          if (typeof item.liked === "boolean") targetSong.liked = item.liked;
+          await saveSongMetaAsync(targetSong);
+        }
+
+        if (targetSong) {
+          sigToSongId.set(sig, targetSong.id);
         }
       }
+
+      if (manifest && Array.isArray(manifest.liked)) {
+        for (const s of songs) {
+          if (manifest.liked.includes(s.orig || s.name)) {
+            s.liked = true;
+            await saveSongMetaAsync(s);
+          }
+        }
+      }
+
+      if (manifest && Array.isArray(manifest.playlists)) {
+        pendingPlaylists.push(...manifest.playlists);
+      }
+
+      incomingSongs.length = 0;
+      incomingSongs = null;
+      await pauseTick(150);
     }
 
-    for (const p of ((manifest && manifest.playlists) || [])) {
+    for (const p of pendingPlaylists) {
       const rawRefs = Array.isArray(p.songSigs) ? p.songSigs : (Array.isArray(p.songKeys) ? p.songKeys : []);
       const resolvedIds = rawRefs
         .map(ref => {
