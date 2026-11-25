@@ -978,8 +978,8 @@ input[type=file] { display: none; }
       <div class="settings-card">
         <div style="font-weight:700;color:#FFF;margin-bottom:8px">Backup e Stato</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="pill-btn" id="expBtn">Backup totale (brani + tutto)</button>
-          <button class="pill-btn" id="impBtn">Importa backup totale</button>
+          <button class="pill-btn" id="expBtn">Backup totale (.ZIP)</button>
+          <button class="pill-btn" id="impBtn">Importa backup (.ZIP)</button>
           <button class="pill-btn" id="diagBtn">Stato memoria</button>
         </div>
         <div id="ver" style="margin-top:10px;font-size:12px"></div>
@@ -1207,14 +1207,14 @@ input[type=file] { display: none; }
 <input type="file" id="fileInput" accept="audio/*,.mp3,.m4a,.wav,.ogg,.aac,.flac,.zip,application/zip,application/x-zip-compressed" multiple>
 <input type="file" id="coverInput" accept="image/*">
 <input type="file" id="lrcFileInput" accept=".lrc,.txt,text/plain">
-<input type="file" id="impFile" accept=".json,application/json">
+<input type="file" id="impFile" accept=".zip,.json,application/zip,application/x-zip-compressed,application/json">
 <audio id="a" preload="auto" x-webkit-airplay="allow"></audio>
 
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 35;
-const SESSION_KEY = "hush_locale_state_v35";
+const APP_VERSION = 36;
+const SESSION_KEY = "hush_locale_state_v36";
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -3236,26 +3236,179 @@ $("#airBtn").onclick = () => {
   }
 };
 
-/* --- BACKUP TOTALE (BRANI AUDIO + TESTI + PLAYLIST CON BRANI + LIKE + IMPOSTAZIONI) --- */
+/* --- CREATORE ZIP (STORE + CRC32) PER BACKUP MULTI-FILE --- */
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32Bytes(bytes) {
+  let c = 0xffffffff;
+  for (let i = 0; i < bytes.length; i++) {
+    c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
+  }
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+function buildZipBlob(entries) {
+  const enc = new TextEncoder();
+  const localParts = [];
+  const centralParts = [];
+  let offset = 0;
+
+  for (const ent of entries) {
+    const nameBytes = enc.encode(ent.name);
+    const dataBytes = ent.bytes instanceof Uint8Array ? ent.bytes : new Uint8Array(ent.bytes);
+    const crc = crc32Bytes(dataBytes);
+    const size = dataBytes.length;
+
+    const localHeader = new Uint8Array(30 + nameBytes.length);
+    const lv = new DataView(localHeader.buffer);
+    lv.setUint32(0, 0x04034b50, true);
+    lv.setUint16(4, 20, true);
+    lv.setUint16(6, 0x0800, true);
+    lv.setUint16(8, 0, true);
+    lv.setUint16(10, 0, true);
+    lv.setUint16(12, 0, true);
+    lv.setUint32(14, crc, true);
+    lv.setUint32(18, size, true);
+    lv.setUint32(22, size, true);
+    lv.setUint16(26, nameBytes.length, true);
+    lv.setUint16(28, 0, true);
+    localHeader.set(nameBytes, 30);
+
+    localParts.push(localHeader, dataBytes);
+
+    const centralHeader = new Uint8Array(46 + nameBytes.length);
+    const cv = new DataView(centralHeader.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, 0, true);
+    cv.setUint16(14, 0, true);
+    cv.setUint32(16, crc, true);
+    cv.setUint32(20, size, true);
+    cv.setUint32(24, size, true);
+    cv.setUint16(28, nameBytes.length, true);
+    cv.setUint16(30, 0, true);
+    cv.setUint16(32, 0, true);
+    cv.setUint16(34, 0, true);
+    cv.setUint16(36, 0, true);
+    cv.setUint32(38, 0, true);
+    cv.setUint32(42, offset, true);
+    centralHeader.set(nameBytes, 46);
+
+    centralParts.push(centralHeader);
+    offset += localHeader.length + size;
+  }
+
+  let centralSize = 0;
+  for (const ch of centralParts) centralSize += ch.length;
+
+  const eocd = new Uint8Array(22);
+  const ev = new DataView(eocd.buffer);
+  ev.setUint32(0, 0x06054b50, true);
+  ev.setUint16(4, 0, true);
+  ev.setUint16(6, 0, true);
+  ev.setUint16(8, entries.length, true);
+  ev.setUint16(10, entries.length, true);
+  ev.setUint32(12, centralSize, true);
+  ev.setUint32(16, offset, true);
+  ev.setUint16(20, 0, true);
+
+  return new Blob([...localParts, ...centralParts, eocd], { type: "application/zip" });
+}
+
+async function extractAllFilesFromZip(zipFile) {
+  const buf = await zipFile.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  const view = new DataView(buf);
+
+  let eocdOffset = -1;
+  const searchStart = Math.max(0, bytes.length - 65557);
+  for (let i = bytes.length - 22; i >= searchStart; i--) {
+    if (view.getUint32(i, true) === 0x06054b50) {
+      eocdOffset = i;
+      break;
+    }
+  }
+  if (eocdOffset === -1) throw new Error("Archivio ZIP non valido");
+
+  const totalEntries = view.getUint16(eocdOffset + 10, true);
+  let cdOffset = view.getUint32(eocdOffset + 16, true);
+  const decoder = new TextDecoder("utf-8");
+  const out = [];
+
+  for (let i = 0; i < totalEntries; i++) {
+    if (cdOffset + 46 > bytes.length || view.getUint32(cdOffset, true) !== 0x02014b50) break;
+    const method = view.getUint16(cdOffset + 10, true);
+    const compSize = view.getUint32(cdOffset + 20, true);
+    const nameLen = view.getUint16(cdOffset + 28, true);
+    const extraLen = view.getUint16(cdOffset + 30, true);
+    const commentLen = view.getUint16(cdOffset + 32, true);
+    const localHeaderOffset = view.getUint32(cdOffset + 42, true);
+
+    const fileName = decoder.decode(bytes.subarray(cdOffset + 46, cdOffset + 46 + nameLen));
+    cdOffset += 46 + nameLen + extraLen + commentLen;
+
+    if (fileName.endsWith("/") || fileName.includes("__MACOSX")) continue;
+    if (localHeaderOffset + 30 > bytes.length || view.getUint32(localHeaderOffset, true) !== 0x04034b50) continue;
+
+    const lNameLen = view.getUint16(localHeaderOffset + 26, true);
+    const lExtraLen = view.getUint16(localHeaderOffset + 28, true);
+    const dataStart = localHeaderOffset + 30 + lNameLen + lExtraLen;
+    const dataEnd = dataStart + compSize;
+    if (dataEnd > bytes.length) continue;
+
+    const slice = bytes.subarray(dataStart, dataEnd);
+    let rawBytes;
+    if (method === 0) rawBytes = new Uint8Array(slice);
+    else if (method === 8) rawBytes = await inflateRawDeflate(slice);
+    else continue;
+
+    out.push({ name: fileName, text: decoder.decode(rawBytes) });
+  }
+  return out;
+}
+
+/* --- BACKUP TOTALE IN ARCHIVIO ZIP CON FILE SEPARATI --- */
 function makeTrackSignature(s) {
   return `${s.orig || s.name}__${s.size || 0}`;
 }
 
+const pauseTick = () => new Promise(r => setTimeout(r, 25));
+
 $("#expBtn").onclick = async () => {
-  toast("Preparazione backup completo...");
-  const exportedSongs = [];
+  if (!songs.length && !lists.length) {
+    toast("Nulla da esportare");
+    return;
+  }
+
+  const enc = new TextEncoder();
+  const zipEntries = [];
   const idToSig = new Map();
 
-  for (const s of songs) {
+  for (let i = 0; i < songs.length; i++) {
+    const s = songs[i];
+    toast(`Esportazione brano ${i + 1}/${songs.length} nello ZIP...`);
     const sig = makeTrackSignature(s);
     idToSig.set(s.id, sig);
+
     let audioB64 = null;
     const blob = await getSongBlob(s.id);
     if (blob) {
       const buf = await blob.arrayBuffer();
       audioB64 = arrayBufferToBase64(buf);
     }
-    exportedSongs.push({
+
+    const trackPayload = {
       sig,
       orig: s.orig || s.name,
       name: s.name,
@@ -3266,28 +3419,42 @@ $("#expBtn").onclick = async () => {
       size: s.size || (blob ? blob.size : 0),
       type: s.type || (blob && blob.type) || "audio/mpeg",
       audioB64
+    };
+
+    const fileNum = String(i + 1).padStart(4, "0");
+    zipEntries.push({
+      name: `tracks/track_${fileNum}.json`,
+      bytes: enc.encode(JSON.stringify(trackPayload))
     });
+
+    await pauseTick();
   }
 
-  const exportedPlaylists = lists.map(pl => ({
-    name: pl.name,
-    songSigs: pl.songIds.map(id => idToSig.get(id)).filter(Boolean)
-  }));
-
-  const payload = {
-    v: 4,
+  const manifestObj = {
+    v: 5,
     app: "Hush",
     exportedAt: new Date().toISOString(),
     settings: { shuffle, repeatMode },
-    songs: exportedSongs,
-    playlists: exportedPlaylists
+    playlists: lists.map(pl => ({
+      name: pl.name,
+      songSigs: pl.songIds.map(id => idToSig.get(id)).filter(Boolean)
+    }))
   };
 
+  zipEntries.unshift({
+    name: "manifest.json",
+    bytes: enc.encode(JSON.stringify(manifestObj, null, 2))
+  });
+
+  toast("Creazione archivio ZIP...");
+  const zipBlob = buildZipBlob(zipEntries);
+  const url = URL.createObjectURL(zipBlob);
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([JSON.stringify(payload)], { type: "application/json" }));
-  a.download = "hush-backup-totale.json";
+  a.href = url;
+  a.download = "hush-backup-totale.zip";
   a.click();
-  toast("Backup totale esportato");
+  setTimeout(() => URL.revokeObjectURL(url), 15000);
+  toast("Archivio hush-backup-totale.zip pronto!");
 };
 
 $("#impBtn").onclick = () => $("#impFile").click();
@@ -3295,14 +3462,37 @@ $("#impFile").onchange = async e => {
   const f = e.target.files[0];
   e.target.value = "";
   if (!f) return;
-  toast("Ripristino backup in corso...");
 
   try {
-    const d = JSON.parse(await f.text());
+    let manifest = null;
+    const incomingSongs = [];
 
-    if (d.settings) {
-      if (typeof d.settings.shuffle === "boolean") shuffle = d.settings.shuffle;
-      if (typeof d.settings.repeatMode === "number") repeatMode = d.settings.repeatMode;
+    if (f.name.toLowerCase().endsWith(".zip") || f.type.includes("zip")) {
+      toast("Lettura archivio ZIP...");
+      const filesInZip = await extractAllFilesFromZip(f);
+      const manifestEntry = filesInZip.find(x => x.name === "manifest.json" || x.name.endsWith("/manifest.json"));
+      if (manifestEntry) {
+        manifest = JSON.parse(manifestEntry.text);
+      }
+      const trackEntries = filesInZip
+        .filter(x => x.name.includes("track_") && x.name.endsWith(".json"))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      for (let i = 0; i < trackEntries.length; i++) {
+        toast(`Ripristino brano ${i + 1}/${trackEntries.length}...`);
+        incomingSongs.push(JSON.parse(trackEntries[i].text));
+        await pauseTick();
+      }
+    } else {
+      const d = JSON.parse(await f.text());
+      manifest = d;
+      if (Array.isArray(d.songs)) incomingSongs.push(...d.songs);
+      else if (Array.isArray(d.tracksMeta)) incomingSongs.push(...d.tracksMeta);
+    }
+
+    if (manifest && manifest.settings) {
+      if (typeof manifest.settings.shuffle === "boolean") shuffle = manifest.settings.shuffle;
+      if (typeof manifest.settings.repeatMode === "number") repeatMode = manifest.settings.repeatMode;
     }
 
     const sigToSongId = new Map();
@@ -3310,7 +3500,6 @@ $("#impFile").onchange = async e => {
       sigToSongId.set(makeTrackSignature(curS), curS.id);
     }
 
-    const incomingSongs = Array.isArray(d.songs) ? d.songs : (Array.isArray(d.tracksMeta) ? d.tracksMeta : []);
     for (const item of incomingSongs) {
       const sig = item.sig || `${item.orig || item.name}__${item.size || 0}`;
       let targetSong = songs.find(s => makeTrackSignature(s) === sig)
@@ -3353,16 +3542,16 @@ $("#impFile").onchange = async e => {
       }
     }
 
-    if (Array.isArray(d.liked)) {
+    if (manifest && Array.isArray(manifest.liked)) {
       for (const s of songs) {
-        if (d.liked.includes(s.orig || s.name)) {
+        if (manifest.liked.includes(s.orig || s.name)) {
           s.liked = true;
           await saveSongMetaAsync(s);
         }
       }
     }
 
-    for (const p of (d.playlists || [])) {
+    for (const p of ((manifest && manifest.playlists) || [])) {
       const rawRefs = Array.isArray(p.songSigs) ? p.songSigs : (Array.isArray(p.songKeys) ? p.songKeys : []);
       const resolvedIds = rawRefs
         .map(ref => {
@@ -3401,9 +3590,9 @@ $("#impFile").onchange = async e => {
 
     renderAll();
     persistPlaybackState();
-    toast("Tutto ripristinato come prima!");
+    toast("Backup ZIP ripristinato!");
   } catch (err) {
-    toast("Errore durante il ripristino del backup");
+    toast("Errore lettura archivio ZIP");
   }
 };
 
