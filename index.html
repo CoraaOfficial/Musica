@@ -581,7 +581,7 @@ input[type=range].sp-range::-webkit-slider-thumb {
   margin-bottom: 14px;
 }
 
-/* Coda in sovrimpressione stile Spotify (estendibile a tutto schermo) */
+/* Coda in sovrimpressione stile Spotify (transizione fluida e trascinamento reattivo) */
 #queueOverlay {
   position: fixed;
   inset: 0;
@@ -589,7 +589,11 @@ input[type=range].sp-range::-webkit-slider-thumb {
   z-index: 45;
   display: flex;
   align-items: flex-end;
-  transition: background .25s ease;
+  opacity: 0;
+  transition: opacity .32s cubic-bezier(0.22, 1, 0.36, 1), background .32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+#queueOverlay.visible {
+  opacity: 1;
 }
 #queueOverlay.expanded {
   background: #141414;
@@ -607,8 +611,21 @@ input[type=range].sp-range::-webkit-slider-thumb {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transform: translate3d(0, 100%, 0);
+  will-change: transform, height;
   box-shadow: 0 -14px 42px rgba(0,0,0,0.85);
-  transition: height .28s cubic-bezier(0.22, 1, 0.36, 1), border-radius .28s ease, max-width .28s ease;
+  transition:
+    transform .36s cubic-bezier(0.22, 1, 0.36, 1),
+    height .38s cubic-bezier(0.22, 1, 0.36, 1),
+    border-radius .34s cubic-bezier(0.22, 1, 0.36, 1),
+    max-width .34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+#queueOverlay.visible #queueSheet {
+  transform: translate3d(0, 0, 0);
+}
+#queueOverlay.dragging #queueSheet,
+#queueOverlay.dragging {
+  transition: none !important;
 }
 #queueOverlay.expanded #queueSheet {
   height: 100dvh;
@@ -1200,8 +1217,8 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 30;
-const SESSION_KEY = "musica_locale_state_v30";
+const APP_VERSION = 31;
+const SESSION_KEY = "musica_locale_state_v31";
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -2699,14 +2716,79 @@ function renderQueue() {
   });
 }
 
-/* --- APERTURA / ESTENSIONE / CHIUSURA CODA IN SOVRIMPRESSIONE --- */
+/* --- APERTURA / ESTENSIONE / CHIUSURA FLUIDA CODA IN SOVRIMPRESSIONE --- */
+let queueHideTimer = null;
+
+function setQueueExpandedSmooth(expanded) {
+  const ov = $("#queueOverlay");
+  const sheet = $("#queueSheet");
+  ov.classList.remove("dragging");
+  sheet.style.transform = "";
+  ov.style.opacity = "";
+
+  const startHeight = sheet.getBoundingClientRect().height;
+  ov.classList.toggle("expanded", Boolean(expanded));
+  const endHeight = sheet.getBoundingClientRect().height;
+
+  if (Math.abs(startHeight - endHeight) > 1) {
+    sheet.style.transition = "none";
+    sheet.style.height = `${startHeight}px`;
+    sheet.getBoundingClientRect();
+    requestAnimationFrame(() => {
+      sheet.style.transition = "";
+      sheet.style.height = `${endHeight}px`;
+      const onDone = ev => {
+        if (ev.propertyName === "height") {
+          sheet.style.height = "";
+          sheet.removeEventListener("transitionend", onDone);
+        }
+      };
+      sheet.addEventListener("transitionend", onDone);
+      setTimeout(() => {
+        if (sheet.style.height) sheet.style.height = "";
+        sheet.removeEventListener("transitionend", onDone);
+      }, 420);
+    });
+  }
+}
+
 function setQueueOverlayOpen(open, expanded = false) {
   const ov = $("#queueOverlay");
-  ov.hidden = !open;
-  ov.classList.toggle("expanded", Boolean(open && expanded));
+  const sheet = $("#queueSheet");
+  if (queueHideTimer) {
+    clearTimeout(queueHideTimer);
+    queueHideTimer = null;
+  }
+
   if (open) {
     renderQueue();
     $("#qsScroll").scrollTop = 0;
+    ov.classList.remove("dragging");
+    ov.classList.toggle("expanded", Boolean(expanded));
+    sheet.style.height = "";
+    sheet.style.transform = "translate3d(0, 100%, 0)";
+    ov.style.opacity = "0";
+    ov.hidden = false;
+    ov.getBoundingClientRect();
+    requestAnimationFrame(() => {
+      sheet.style.transform = "";
+      ov.style.opacity = "";
+      ov.classList.add("visible");
+    });
+  } else {
+    if (ov.hidden) return;
+    ov.classList.remove("dragging");
+    sheet.style.height = "";
+    ov.classList.remove("visible");
+    sheet.style.transform = "translate3d(0, 100%, 0)";
+    ov.style.opacity = "0";
+    queueHideTimer = setTimeout(() => {
+      ov.hidden = true;
+      ov.classList.remove("expanded");
+      sheet.style.transform = "";
+      ov.style.opacity = "";
+      queueHideTimer = null;
+    }, 360);
   }
 }
 
@@ -2720,7 +2802,7 @@ $("#qsCloseBtn").onclick = () => {
 
 $("#qsExpandBtn").onclick = () => {
   const ov = $("#queueOverlay");
-  ov.classList.toggle("expanded");
+  setQueueExpandedSmooth(!ov.classList.contains("expanded"));
 };
 
 $("#queueOverlay").onclick = e => {
@@ -2729,38 +2811,69 @@ $("#queueOverlay").onclick = e => {
   }
 };
 
-// Trascinamento maniglia per estendere a tutto schermo o chiudere
-let qsStartY = 0, qsPointerId = null;
+// Trascinamento fluido con follow del dito e scatto morbido al rilascio
+let qsStartY = 0, qsLastDy = 0, qsPointerId = null;
 $("#qsDragZone").addEventListener("pointerdown", e => {
   if (e.target.closest("button")) return;
+  const ov = $("#queueOverlay");
+  const sheet = $("#queueSheet");
   qsPointerId = e.pointerId;
   qsStartY = e.clientY;
+  qsLastDy = 0;
+  ov.classList.add("dragging");
+  sheet.style.height = "";
   try { $("#qsDragZone").setPointerCapture(qsPointerId); } catch (err) {}
 });
+
 $("#qsDragZone").addEventListener("pointermove", e => {
   if (e.pointerId !== qsPointerId) return;
-  const dy = e.clientY - qsStartY;
   const ov = $("#queueOverlay");
-  if (!ov.classList.contains("expanded") && dy < -55) {
-    ov.classList.add("expanded");
-    qsStartY = e.clientY;
-  } else if (dy > 90) {
-    if (ov.classList.contains("expanded")) {
-      ov.classList.remove("expanded");
-      qsStartY = e.clientY;
-    } else {
-      setQueueOverlayOpen(false, false);
-      qsPointerId = null;
-    }
+  const sheet = $("#queueSheet");
+  const dy = e.clientY - qsStartY;
+  qsLastDy = dy;
+
+  if (dy > 0) {
+    const clamped = Math.min(dy, window.innerHeight * 0.85);
+    sheet.style.transform = `translate3d(0, ${clamped}px, 0)`;
+    const progress = Math.min(clamped / (sheet.getBoundingClientRect().height * 0.45), 1);
+    ov.style.opacity = String(Math.max(0.15, 1 - progress * 0.85));
+  } else {
+    const pullUp = Math.max(dy, -220);
+    sheet.style.transform = `translate3d(0, ${pullUp * 0.45}px, 0)`;
+    ov.style.opacity = "1";
   }
 });
-$("#qsDragZone").addEventListener("pointerup", e => {
-  if (e.pointerId === qsPointerId) {
-    try { $("#qsDragZone").releasePointerCapture(qsPointerId); } catch (err) {}
-    qsPointerId = null;
+
+const finishQueueDrag = e => {
+  if (e.pointerId !== qsPointerId) return;
+  const ov = $("#queueOverlay");
+  const sheet = $("#queueSheet");
+  const dy = qsLastDy;
+  try { $("#qsDragZone").releasePointerCapture(qsPointerId); } catch (err) {}
+  qsPointerId = null;
+  ov.classList.remove("dragging");
+
+  const isExp = ov.classList.contains("expanded");
+  const sheetH = sheet.getBoundingClientRect().height || 500;
+
+  if (dy > Math.max(110, sheetH * 0.24)) {
+    setQueueOverlayOpen(false, false);
+  } else if (!isExp && dy < -70) {
+    sheet.style.transform = "";
+    ov.style.opacity = "";
+    setQueueExpandedSmooth(true);
+  } else if (isExp && dy > 65) {
+    sheet.style.transform = "";
+    ov.style.opacity = "";
+    setQueueExpandedSmooth(false);
+  } else {
+    sheet.style.transform = "";
+    ov.style.opacity = "";
   }
-});
-$("#qsDragZone").addEventListener("pointercancel", () => { qsPointerId = null; });
+};
+
+$("#qsDragZone").addEventListener("pointerup", finishQueueDrag);
+$("#qsDragZone").addEventListener("pointercancel", finishQueueDrag);
 
 /* --- MENU OPZIONI & MODIFICA --- */
 function openSongMenu(s, ctxIds, ctxLabel) {
