@@ -1213,8 +1213,8 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 39;
-const SESSION_KEY = "hush_locale_state_v39";
+const APP_VERSION = 40;
+const SESSION_KEY = "hush_locale_state_v40";
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -1939,9 +1939,10 @@ async function load() {
     if (currentSong) applyCoverColor(currentSong.cover);
     renderAll();
 
-    const blob = await getSongBlob(curId);
+    let blob = await getSongBlob(curId);
     if (blob) {
       const restoredUrl = URL.createObjectURL(blob);
+      blob = null;
       audioUrl = restoredUrl;
       audio.src = restoredUrl;
       audio.load();
@@ -2324,7 +2325,10 @@ async function getSongBlob(id) {
   if (db) {
     try {
       const buf = await rq(dstore("readonly").get(id));
-      if (buf) return new Blob([buf], { type: s.type || "audio/mpeg" });
+      if (buf) {
+        const b = new Blob([buf], { type: s.type || "audio/mpeg" });
+        return b;
+      }
     } catch (e) {}
   }
   return null;
@@ -2335,7 +2339,7 @@ async function prefetchNextTrack() {
   if (!nextId || nextId === curId) return;
   if (prefetchedNext.id === nextId && prefetchedNext.url) return;
 
-  const blob = await getSongBlob(nextId);
+  let blob = await getSongBlob(nextId);
   if (!blob) return;
 
   if (prefetchedNext.url && prefetchedNext.url !== audioUrl) {
@@ -2346,6 +2350,7 @@ async function prefetchNextTrack() {
     blob,
     url: URL.createObjectURL(blob)
   };
+  blob = null;
 }
 
 function safeSetPositionState() {
@@ -2388,10 +2393,11 @@ async function forcePlayAudio() {
   syncMediaSession();
 
   if (curId && (audio.error || audio.readyState < 2 || !audio.src)) {
-    const blob = await getSongBlob(curId);
+    let blob = await getSongBlob(curId);
     if (blob) {
       const oldUrl = audioUrl;
       const freshUrl = URL.createObjectURL(blob);
+      blob = null;
       audioUrl = freshUrl;
       audio.src = freshUrl;
       audio.load();
@@ -2467,10 +2473,12 @@ async function play(id, newQueue = null, fromQueue = false, label = null) {
     return;
   }
 
-  const blob = await getSongBlob(id);
+  let blob = await getSongBlob(id);
   if (!blob) { toast("Impossibile leggere il file audio"); return; }
 
-  startTrackImmediate(id, URL.createObjectURL(blob), fromQueue, label);
+  const nextUrl = URL.createObjectURL(blob);
+  blob = null;
+  startTrackImmediate(id, nextUrl, fromQueue, label);
 }
 
 function step(dir) {
@@ -3239,7 +3247,7 @@ $("#airBtn").onclick = () => {
   }
 };
 
-/* --- CREATORE ZIP STREAMING/INCREMENTALE IN SINGOLO FILE --- */
+/* --- CREATORE ZIP CON RILASCIO IMMEDIATO DEI BUFFER --- */
 const CRC_TABLE = (() => {
   const t = new Uint32Array(256);
   for (let n = 0; n < 256; n++) {
@@ -3267,7 +3275,7 @@ function createStreamingZipWriter() {
 
   function addEntry(name, rawInput) {
     const nameBytes = enc.encode(name);
-    const dataBytes = rawInput instanceof Uint8Array ? rawInput : new Uint8Array(rawInput);
+    let dataBytes = rawInput instanceof Uint8Array ? rawInput : new Uint8Array(rawInput);
     const crc = crc32Bytes(dataBytes);
     const size = dataBytes.length;
 
@@ -3312,6 +3320,7 @@ function createStreamingZipWriter() {
     centralDir.push(centralHeader);
     offset += localHeader.length + size;
     count++;
+    dataBytes = null;
   }
 
   function finishBlob() {
@@ -3330,8 +3339,8 @@ function createStreamingZipWriter() {
     ev.setUint16(20, 0, true);
 
     const blob = new Blob([...parts, ...centralDir, eocd], { type: "application/zip" });
-    parts.length = 0;
-    centralDir.length = 0;
+    parts.splice(0, parts.length);
+    centralDir.splice(0, centralDir.length);
     return blob;
   }
 
@@ -3395,7 +3404,7 @@ async function extractAllFilesFromZip(zipFile) {
   return out;
 }
 
-/* --- BACKUP TOTALE IN UN SOLO FILE ZIP (AUDIO BINARIO + METADATI + MANIFEST) --- */
+/* --- BACKUP TOTALE IN UN SOLO FILE ZIP CON RILASCIO IMMEDIATO DEI BUFFER --- */
 function makeTrackSignature(s) {
   return `${s.orig || s.name}__${s.size || 0}`;
 }
@@ -3408,7 +3417,9 @@ function triggerBlobDownload(blob, fileName) {
   a.href = url;
   a.download = fileName;
   a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 15000);
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 15000);
 }
 
 $("#expBtn").onclick = async () => {
@@ -3437,7 +3448,9 @@ $("#expBtn").onclick = async () => {
       songSigs: pl.songIds.map(id => idToSig.get(id)).filter(Boolean)
     }))
   };
-  zipWriter.addEntry("manifest.json", enc.encode(JSON.stringify(manifestObj, null, 2)));
+  let manifestBytes = enc.encode(JSON.stringify(manifestObj, null, 2));
+  zipWriter.addEntry("manifest.json", manifestBytes);
+  manifestBytes = null;
 
   for (let i = 0; i < songs.length; i++) {
     const s = songs[i];
@@ -3450,9 +3463,12 @@ $("#expBtn").onclick = async () => {
     const metaPath = `tracks/track_${fileNum}_meta.json`;
 
     let hasAudio = false;
-    const blob = await getSongBlob(s.id);
+    let blob = await getSongBlob(s.id);
+    let reportedSize = s.size || 0;
     if (blob) {
+      reportedSize = s.size || blob.size;
       let buf = await blob.arrayBuffer();
+      blob = null;
       zipWriter.addEntry(audioPath, buf);
       buf = null;
       hasAudio = true;
@@ -3466,22 +3482,25 @@ $("#expBtn").onclick = async () => {
       cover: s.cover || null,
       lyrics: s.lyrics || null,
       liked: Boolean(s.liked),
-      size: s.size || (blob ? blob.size : 0),
+      size: reportedSize,
       type: mime,
       audioFile: hasAudio ? audioPath : null
     };
 
-    zipWriter.addEntry(metaPath, enc.encode(JSON.stringify(metaPayload)));
+    let metaBytes = enc.encode(JSON.stringify(metaPayload));
+    zipWriter.addEntry(metaPath, metaBytes);
+    metaBytes = null;
 
-    if (i % 10 === 9) {
-      await pauseTick(30);
+    if (i % 5 === 4) {
+      await pauseTick(40);
     }
   }
 
   toast("Creazione archivio ZIP unico...");
-  await pauseTick(50);
-  const zipBlob = zipWriter.finishBlob();
+  await pauseTick(60);
+  let zipBlob = zipWriter.finishBlob();
   triggerBlobDownload(zipBlob, "hush-backup-totale.zip");
+  zipBlob = null;
   toast("Backup totale ZIP pronto!");
 };
 
@@ -3534,7 +3553,7 @@ $("#impFile").onchange = async e => {
 
             const audioEntry = item.audioFile ? byName.get(item.audioFile) : null;
             if (!targetSong && audioEntry && audioEntry.bytes) {
-              const buf = audioEntry.bytes.buffer.slice(
+              let buf = audioEntry.bytes.buffer.slice(
                 audioEntry.bytes.byteOffset,
                 audioEntry.bytes.byteOffset + audioEntry.bytes.byteLength
               );
@@ -3558,6 +3577,8 @@ $("#impFile").onchange = async e => {
                 songs.push(rec);
                 targetSong = rec;
               }
+              buf = null;
+              audioEntry.bytes = null;
             } else if (targetSong) {
               if (item.name) targetSong.name = item.name;
               if (item.artist) targetSong.artist = item.artist;
@@ -3570,10 +3591,9 @@ $("#impFile").onchange = async e => {
             if (targetSong) {
               sigToSongId.set(sig, targetSong.id);
             }
-            if (i % 15 === 14) await pauseTick(20);
+            if (i % 10 === 9) await pauseTick(25);
           }
         } else {
-          // Compatibilità con vecchi ZIP v6 (track_XXXX.json con audioB64)
           const legacyEntries = filesInZip
             .filter(x => x.name.includes("track_") && x.name.endsWith(".json") && !x.name.endsWith("_meta.json"))
             .sort((a, b) => a.name.localeCompare(b.name));
@@ -3587,7 +3607,7 @@ $("#impFile").onchange = async e => {
               || null;
 
             if (!targetSong && item.audioB64) {
-              const buf = base64ToArrayBuffer(item.audioB64);
+              let buf = base64ToArrayBuffer(item.audioB64);
               const rec = {
                 name: item.name || item.orig || "Brano",
                 artist: item.artist || "Artista locale",
@@ -3608,6 +3628,7 @@ $("#impFile").onchange = async e => {
                 songs.push(rec);
                 targetSong = rec;
               }
+              buf = null;
             } else if (targetSong) {
               if (item.name) targetSong.name = item.name;
               if (item.artist) targetSong.artist = item.artist;
@@ -3620,9 +3641,10 @@ $("#impFile").onchange = async e => {
             if (targetSong) {
               sigToSongId.set(sig, targetSong.id);
             }
-            if (i % 15 === 14) await pauseTick(20);
+            if (i % 10 === 9) await pauseTick(25);
           }
         }
+        filesInZip.splice(0, filesInZip.length);
       } else {
         const d = JSON.parse(await f.text());
         manifest = d;
