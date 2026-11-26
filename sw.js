@@ -1,5 +1,5 @@
-const CACHE = "canzoni-v42";
-const SHELL = ["./", "index.html", "manifest.webmanifest", "IMG_1550.jpeg"];
+const CACHE = "canzoni-v43";
+const SHELL = ["./", "index.html", "manifest.webmanifest", "icon.png"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

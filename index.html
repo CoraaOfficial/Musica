@@ -9,7 +9,8 @@
 <meta name="description" content="Lettore musicale locale offline con playlist, coda riordinabile e testi sincronizzati LRC.">
 <title>Hush</title>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="IMG_1550.jpeg">
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
 <meta name="apple-mobile-web-app-title" content="Hush">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -55,12 +56,120 @@ main { max-width: 640px; margin: 0 auto; padding: 12px 16px; }
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin: 6px 0 18px;
+  margin: 6px 0 14px;
 }
 .top-title-group { display: flex; flex-direction: column; }
 .top-sub { font-size: 12px; font-weight: 600; color: var(--muted); margin-top: 2px; }
 h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.03em; margin: 0; }
 h2 { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; margin: 22px 0 12px; }
+
+/* Filter Pills stile Spotify */
+.filter-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 0 14px;
+  scrollbar-width: none;
+}
+.filter-chips::-webkit-scrollbar { display: none; }
+.chip-btn {
+  flex: none;
+  background: var(--surface-hi);
+  color: var(--text);
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font: 600 13px inherit;
+  cursor: pointer;
+  transition: background .15s, color .15s, transform .1s;
+}
+.chip-btn:active { transform: scale(0.95); }
+.chip-btn.on {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+}
+
+/* Carosello Orizzontale "Aggiunti di recente" stile Spotify */
+.h-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 2px 0 8px;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+}
+.h-scroll::-webkit-scrollbar { display: none; }
+.sq-card {
+  flex: none;
+  width: 132px;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  scroll-snap-align: start;
+  transition: transform .12s;
+}
+.sq-card:active { transform: scale(0.96); }
+.sq-art {
+  width: 132px;
+  height: 132px;
+  border-radius: 8px;
+  background: var(--surface-hi);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+  margin-bottom: 8px;
+  position: relative;
+}
+.sq-art img { width: 100%; height: 100%; object-fit: cover; }
+.sq-art svg { width: 42px; height: 42px; color: var(--muted); }
+.sq-title {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sq-sub {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+/* Griglia Esplora in Cerca */
+.browse-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 8px;
+}
+.browse-card {
+  position: relative;
+  height: 88px;
+  border-radius: 10px;
+  padding: 12px 14px;
+  border: 0;
+  color: #FFF;
+  font: 800 15px/1.2 inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+  transition: transform .12s;
+}
+.browse-card:active { transform: scale(0.97); }
+.browse-card small { font-size: 11px; font-weight: 600; opacity: 0.85; }
 
 .pill-btn {
   background: var(--surface-hi);
@@ -316,7 +425,13 @@ svg { width: 22px; height: 22px; fill: currentColor; }
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 10px 0 18px;
+  padding: 16px 12px 18px;
+  margin: 0 -16px 8px;
+  background: linear-gradient(180deg, rgba(29, 185, 84, 0.22) 0%, rgba(13, 13, 13, 0) 100%);
+  border-radius: 16px 16px 0 0;
+}
+.pl-hero.liked-hero {
+  background: linear-gradient(180deg, rgba(75, 21, 245, 0.42) 0%, rgba(13, 13, 13, 0) 100%);
 }
 .pl-cover-lg {
   width: 180px;
@@ -391,7 +506,7 @@ svg { width: 22px; height: 22px; fill: currentColor; }
   left: 12px;
   bottom: 0;
   height: 2px;
-  width: calc(var(--p, 0%) * 0.95);
+  width: calc((100% - 24px) * var(--progress, 0));
   background: #FFFFFF;
   border-radius: 2px;
   z-index: 1;
@@ -445,14 +560,21 @@ svg { width: 22px; height: 22px; fill: currentColor; }
   display: flex;
   align-items: center;
   justify-content: center;
+  transform: scale(1);
+  transition: transform .32s cubic-bezier(0.22, 1, 0.36, 1), opacity .32s ease, box-shadow .32s ease;
+}
+#player.is-paused .fp-art-wrap {
+  transform: scale(0.92);
+  opacity: 0.86;
+  box-shadow: 0 10px 26px rgba(0,0,0,0.45);
 }
 .fp-art-wrap img { width: 100%; height: 100%; object-fit: cover; }
 .fp-art-wrap svg { width: 90px; height: 90px; color: var(--muted); }
 
 /* Testo interattivo sincronizzato stile Spotify / Apple Music */
 .lyrics-card {
-  background: rgba(0, 0, 0, 0.34);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0.42) 100%), var(--np-color);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 16px;
   padding: 14px;
   margin-bottom: 16px;
@@ -532,10 +654,15 @@ input[type=range].sp-range {
   -webkit-appearance: none;
   width: 100%;
   height: 4px;
-  background: rgba(255,255,255,0.25);
+  background: linear-gradient(to right, #FFFFFF var(--seek-pct, 0%), rgba(255,255,255,0.22) var(--seek-pct, 0%));
   border-radius: 2px;
   outline: none;
   margin: 0;
+  transition: height .12s;
+}
+input[type=range].sp-range:active {
+  height: 6px;
+  background: linear-gradient(to right, var(--accent) var(--seek-pct, 0%), rgba(255,255,255,0.22) var(--seek-pct, 0%));
 }
 input[type=range].sp-range::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -544,6 +671,7 @@ input[type=range].sp-range::-webkit-slider-thumb {
   border-radius: 50%;
   background: #FFFFFF;
   cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.45);
 }
 .time-row { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 6px; }
 
@@ -746,19 +874,19 @@ input[type=range].sp-range::-webkit-slider-thumb {
   background: rgba(255,255,255,0.08);
 }
 
-/* Bottom Tab Bar stile Instagram */
+/* Bottom Tab Bar stile Spotify */
 #tabs {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(13, 13, 13, 0.94);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  background: linear-gradient(180deg, rgba(13, 13, 13, 0.78) 0%, rgba(13, 13, 13, 0.97) 40%, #0d0d0d 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   display: flex;
   padding-bottom: env(safe-area-inset-bottom, 0px);
   z-index: 15;
-  border-top: 1px solid rgba(255,255,255,0.09);
+  border-top: 1px solid rgba(255,255,255,0.06);
 }
 #tabs button {
   flex: 1;
@@ -926,11 +1054,26 @@ input[type=file] { display: none; }
       <button class="pill-btn" id="rescueBtn" style="margin-top:8px;background:var(--danger)">Salva ora nella memoria</button>
     </div>
 
+    <div class="filter-chips" id="homeChips">
+      <button class="chip-btn on" data-filter="all">Tutti</button>
+      <button class="chip-btn" data-filter="songs">Brani</button>
+      <button class="chip-btn" data-filter="liked">Preferiti</button>
+      <button class="chip-btn" data-filter="playlists">Playlist</button>
+    </div>
+
     <div class="quick-grid" id="quickGrid"></div>
 
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <h2 style="margin-top:6px">Tutti i tuoi brani</h2>
-      <span id="songCount" style="font-size:12px;font-weight:600;color:var(--muted)">0 brani</span>
+    <div id="recentSection" hidden>
+      <h2 style="margin-top:6px">Aggiunti di recente</h2>
+      <div class="h-scroll" id="recentCarousel"></div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+      <h2 style="margin:12px 0" id="homeListTitle">Tutti i tuoi brani</h2>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="pill-btn" id="sortBtn" style="padding:5px 11px;font-size:11.5px">Ordina: A-Z</button>
+        <span id="songCount" style="font-size:12px;font-weight:600;color:var(--muted)">0 brani</span>
+      </div>
     </div>
 
     <ul id="homeSongList"></ul>
@@ -951,6 +1094,10 @@ input[type=file] { display: none; }
         <input type="search" id="q" placeholder="Brani o artisti..." autocomplete="off">
         <button class="search-clear" id="qClear" hidden aria-label="Cancella">✕</button>
       </div>
+    </div>
+    <div id="searchBrowse">
+      <h2 style="margin-top:8px">Sfoglia la libreria</h2>
+      <div class="browse-grid" id="browseGrid"></div>
     </div>
     <ul id="searchList"></ul>
     <div id="searchEmpty" style="text-align:center;padding:40px 16px;color:var(--muted)" hidden>Nessun brano trovato.</div>
@@ -990,13 +1137,14 @@ input[type=file] { display: none; }
     <!-- Dettaglio Playlist / Brani che ti piacciono -->
     <div id="libOpen" hidden>
       <button class="pill-btn" id="backLibBtn" style="margin-bottom:8px">‹ Libreria</button>
-      <div class="pl-hero">
+      <div class="pl-hero" id="plHero">
         <div class="pl-cover-lg" id="plHeroCover"></div>
         <h1 id="plTitle" style="font-size:26px"></h1>
         <div id="plSub" style="font-size:13px;color:var(--muted);margin-top:4px"></div>
         <div class="pl-actions">
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="pill-btn" id="plAddSongsBtn">+ Aggiungi</button>
+            <button class="pill-btn" id="plRenameBtn">Rinomina</button>
             <button class="pill-btn" id="plDelBtn" style="color:#ff6b6b">Elimina</button>
           </div>
           <div style="display:flex;align-items:center;gap:12px">
@@ -1213,8 +1361,8 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 42;
-const SESSION_KEY = "hush_locale_state_v42";
+const APP_VERSION = 43;
+const SESSION_KEY = "hush_locale_state_v43";
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -1239,6 +1387,8 @@ let liveStampIdx = 0;
 let liveStampTimer = null;
 let detectedDeviceLabel = "";
 let airplayWirelessActive = false;
+let homeFilter = "all";
+let homeSort = "az";
 
 /* --- RILEVAMENTO AUTOMATICO DISPOSITIVO / AIRPLAY --- */
 async function refreshExternalAudioState() {
@@ -1799,13 +1949,21 @@ function parseID3(buffer) {
     const end = Math.min(buffer.byteLength, 10 + size);
     const decUtf8 = new TextDecoder("utf-8");
     const decUtf16 = new TextDecoder("utf-16");
+    const decUtf16Be = new TextDecoder("utf-16be");
+    const decLatin1 = new TextDecoder("iso-8859-1");
+
+    const decodeByEnc = (enc, body) => {
+      if (enc === 1) return decUtf16.decode(body);
+      if (enc === 2) return decUtf16Be.decode(body);
+      if (enc === 3) return decUtf8.decode(body);
+      return decLatin1.decode(body);
+    };
 
     const decodeText = (bytes) => {
       if (!bytes.length) return "";
       const enc = bytes[0];
       const body = bytes.slice(1);
-      let str = (enc === 1 || enc === 2) ? decUtf16.decode(body) : decUtf8.decode(body);
-      return str.replace(/\0/g, "").trim();
+      return decodeByEnc(enc, body).replace(/\0/g, "").trim();
     };
 
     while (pos + 10 < end) {
@@ -1832,8 +1990,8 @@ function parseID3(buffer) {
         }
         if (i < frame.length) {
           const body = frame.slice(i);
-          const rawLyrics = (enc === 1 || enc === 2) ? decUtf16.decode(body) : decUtf8.decode(body);
-          res.lyrics = rawLyrics.replace(/\0/g, "").trim() || null;
+          const rawLyrics = decodeByEnc(enc, body);
+          res.lyrics = rawLyrics.replace(/\0/g, "").replace(/\r\n?/g, "\n").trim() || null;
         }
       } else if (id === "APIC" && !res.cover) {
         let i = 1;
@@ -1915,6 +2073,8 @@ async function load() {
   refreshExternalAudioState();
   const h = new Date().getHours();
   $("#greeting").textContent = h < 12 ? "Buongiorno" : h < 18 ? "Buon pomeriggio" : "Buonasera";
+  const verEl = $("#ver");
+  if (verEl) verEl.textContent = `Hush v${APP_VERSION} • PWA Offline`;
   try {
     db = await openDb();
     db.onclose = () => { db = null; };
@@ -2149,47 +2309,96 @@ function makeTrackRow(s, ctxIds, ctxLabel, extraBtn = null) {
   return li;
 }
 
+function getSortedSongs(list = songs) {
+  const arr = [...list];
+  if (homeSort === "recent") {
+    arr.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+  } else if (homeSort === "artist") {
+    arr.sort((a, b) => (a.artist || "").localeCompare(b.artist || "", "it") || a.name.localeCompare(b.name, "it"));
+  } else {
+    arr.sort((a, b) => a.name.localeCompare(b.name, "it"));
+  }
+  return arr;
+}
+
 function renderAll() {
   songs.sort((a, b) => a.name.localeCompare(b.name, "it"));
   $("#warn").hidden = !songs.some(s => s.mem);
-  $("#songCount").textContent = `${songs.length} ${songs.length === 1 ? "brano" : "brani"}`;
   $("#homeSub").textContent = songs.length
     ? `${songs.length} ${songs.length === 1 ? "brano offline" : "brani offline"} • ${lists.length} playlist`
     : "La tua musica offline";
   $("#emptyHome").hidden = songs.length > 0;
 
+  document.querySelectorAll("#homeChips .chip-btn").forEach(btn => {
+    btn.classList.toggle("on", btn.dataset.filter === homeFilter);
+  });
+  const sortLabels = { az: "Ordina: A-Z", recent: "Ordina: Recenti", artist: "Ordina: Artista" };
+  if ($("#sortBtn")) $("#sortBtn").textContent = sortLabels[homeSort] || "Ordina: A-Z";
+
   const qg = $("#quickGrid");
   qg.innerHTML = "";
-  const likedSongs = songs.filter(s => s.liked);
-  const addQuick = (label, artHtml, isLikedCard, onClick) => {
-    const b = document.createElement("button");
-    b.className = "q-card";
-    b.innerHTML = `<div class="q-art ${isLikedCard ? 'liked-grad' : ''}">${artHtml}</div><span>${esc(label)}</span>`;
-    b.onclick = onClick;
-    qg.append(b);
-  };
+  const showQuick = homeFilter === "all" || homeFilter === "playlists";
+  qg.hidden = !showQuick;
+  if (showQuick) {
+    const likedSongs = songs.filter(s => s.liked);
+    const addQuick = (label, artHtml, isLikedCard, onClick) => {
+      const b = document.createElement("button");
+      b.className = "q-card";
+      b.innerHTML = `<div class="q-art ${isLikedCard ? 'liked-grad' : ''}">${artHtml}</div><span>${esc(label)}</span>`;
+      b.onclick = onClick;
+      qg.append(b);
+    };
 
-  addQuick(`Brani che ti piacciono (${likedSongs.length})`, coverHtml(null, true), true, () => {
-    setTab("lib");
-    openPlId = "LIKED";
-    pickingPl = false;
-    renderLib();
-  });
-
-  lists.slice(0, 3).forEach(pl => {
-    const valid = pl.songIds.map(id => songs.find(s => s.id === id)).filter(Boolean);
-    addQuick(pl.name, playlistCoverHtml(valid), false, () => {
+    addQuick(`Brani che ti piacciono (${likedSongs.length})`, coverHtml(null, true), true, () => {
       setTab("lib");
-      openPlId = pl.id;
+      openPlId = "LIKED";
       pickingPl = false;
       renderLib();
     });
-  });
+
+    const plLimit = homeFilter === "playlists" ? 6 : 3;
+    lists.slice(0, plLimit).forEach(pl => {
+      const valid = pl.songIds.map(id => songs.find(s => s.id === id)).filter(Boolean);
+      addQuick(pl.name, playlistCoverHtml(valid), false, () => {
+        setTab("lib");
+        openPlId = pl.id;
+        pickingPl = false;
+        renderLib();
+      });
+    });
+  }
+
+  const recentSec = $("#recentSection");
+  const recentCar = $("#recentCarousel");
+  const showRecent = (homeFilter === "all" || homeFilter === "songs") && songs.length > 0;
+  recentSec.hidden = !showRecent;
+  if (showRecent) {
+    recentCar.innerHTML = "";
+    const recentSongs = [...songs].sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0)).slice(0, 8);
+    const recentIds = recentSongs.map(s => s.id);
+    recentSongs.forEach(s => {
+      const card = document.createElement("button");
+      card.className = "sq-card";
+      card.innerHTML = `
+        <div class="sq-art">${coverHtml(s.cover)}</div>
+        <div class="sq-title">${esc(s.name)}</div>
+        <div class="sq-sub">${esc(s.artist || "Artista locale")}</div>
+      `;
+      card.onclick = () => play(s.id, recentIds, false, "Aggiunti di recente");
+      recentCar.append(card);
+    });
+  }
 
   const homeUl = $("#homeSongList");
   homeUl.innerHTML = "";
-  const allIds = songs.map(s => s.id);
-  songs.forEach(s => homeUl.append(makeTrackRow(s, allIds, "Tutti i tuoi brani")));
+  let visibleSongs = homeFilter === "liked" ? songs.filter(s => s.liked) : songs;
+  if (homeFilter === "playlists") visibleSongs = [];
+  const sortedVisible = getSortedSongs(visibleSongs);
+  $("#homeListTitle").textContent = homeFilter === "liked" ? "Brani che ti piacciono" : "Tutti i tuoi brani";
+  $("#homeListTitle").parentElement.hidden = homeFilter === "playlists";
+  $("#songCount").textContent = `${sortedVisible.length} ${sortedVisible.length === 1 ? "brano" : "brani"}`;
+  const visIds = sortedVisible.map(s => s.id);
+  sortedVisible.forEach(s => homeUl.append(makeTrackRow(s, visIds, $("#homeListTitle").textContent)));
 
   renderSearch();
   renderLib();
@@ -2202,11 +2411,60 @@ function renderSearch() {
   $("#qClear").hidden = !raw.length;
   const q = raw.trim().toLowerCase();
   const ul = $("#searchList");
+  const browseEl = $("#searchBrowse");
+  const browseGrid = $("#browseGrid");
   ul.innerHTML = "";
+
+  if (!q) {
+    browseEl.hidden = false;
+    browseGrid.innerHTML = "";
+    const likedCount = songs.filter(s => s.liked).length;
+    const lyricsCount = songs.filter(s => s.lyrics && s.lyrics.trim()).length;
+    const artists = [...new Set(songs.map(s => (s.artist || "").trim()).filter(a => a && a !== "Artista locale"))].slice(0, 4);
+
+    const addBrowseCard = (title, sub, bg, onClick) => {
+      const b = document.createElement("button");
+      b.className = "browse-card";
+      b.style.background = bg;
+      b.innerHTML = `<span>${esc(title)}</span><small>${esc(sub)}</small>`;
+      b.onclick = onClick;
+      browseGrid.append(b);
+    };
+
+    addBrowseCard("Preferiti", `${likedCount} brani`, "linear-gradient(135deg, #4b15f5, #8e7cf7)", () => {
+      setTab("lib"); openPlId = "LIKED"; pickingPl = false; renderLib();
+    });
+    addBrowseCard("Con testo", `${lyricsCount} brani`, "linear-gradient(135deg, #1db954, #0f6e32)", () => {
+      const withLyr = songs.filter(s => s.lyrics && s.lyrics.trim());
+      if (!withLyr.length) { toast("Nessun brano con testo salvato"); return; }
+      play(withLyr[0].id, withLyr.map(x => x.id), false, "Brani con testo");
+    });
+
+    const palette = [
+      "linear-gradient(135deg, #e13300, #8a1d00)",
+      "linear-gradient(135deg, #1e3264, #0e1a3a)",
+      "linear-gradient(135deg, #8d67ab, #4c3361)",
+      "linear-gradient(135deg, #ba5d07, #6e3500)"
+    ];
+    artists.forEach((art, idx) => {
+      const count = songs.filter(s => (s.artist || "").trim() === art).length;
+      addBrowseCard(art, `${count} ${count === 1 ? "brano" : "brani"}`, palette[idx % palette.length], () => {
+        $("#q").value = art;
+        renderSearch();
+      });
+    });
+
+    $("#searchEmpty").hidden = songs.length > 0;
+    if (songs.length === 0) $("#searchEmpty").textContent = "Importa dei brani nella Home per cercarli qui.";
+    return;
+  }
+
+  browseEl.hidden = true;
   const filtered = songs.filter(s =>
     s.name.toLowerCase().includes(q) || (s.artist || "").toLowerCase().includes(q)
   );
-  $("#searchEmpty").hidden = filtered.length > 0 || songs.length === 0;
+  $("#searchEmpty").textContent = "Nessun brano trovato.";
+  $("#searchEmpty").hidden = filtered.length > 0;
   const ids = filtered.map(s => s.id);
   filtered.forEach(s => ul.append(makeTrackRow(s, ids, "Risultati ricerca")));
 }
@@ -2291,7 +2549,9 @@ function renderLib() {
   $("#plTitle").textContent = pl.name;
   $("#plSub").textContent = `${items.length} ${items.length === 1 ? "brano" : "brani"}`;
   $("#plAddSongsBtn").hidden = isLikedView;
+  $("#plRenameBtn").hidden = isLikedView;
   $("#plDelBtn").hidden = isLikedView;
+  $("#plHero").className = "pl-hero" + (isLikedView ? " liked-hero" : "");
   $("#plEmpty").hidden = items.length > 0;
   $("#plShuffleBtn").classList.toggle("active", shuffle);
 
@@ -2721,7 +2981,7 @@ function renderQueue() {
         <div class="t-sub" style="font-size:12px">${esc(s.artist || "Artista locale")}</div>
       </div>
     `;
-    main.onclick = () => play(id, queue);
+    main.onclick = () => play(id);
 
     const handle = document.createElement("button");
     handle.className = "drag-handle-btn";
@@ -2967,7 +3227,20 @@ function openEditDialog(s) {
 
 function deleteSong(id) {
   if (db) { try { store("readwrite").delete(id); dstore("readwrite").delete(id); } catch (e) {} }
-  if (id === curId) { pauseAudio(); curId = null; $("#player").classList.remove("show", "open"); setQueueOverlayOpen(false, false); }
+  if (prefetchedNext.id === id) {
+    if (prefetchedNext.url && prefetchedNext.url !== audioUrl) URL.revokeObjectURL(prefetchedNext.url);
+    prefetchedNext = { id: null, url: null, blob: null };
+  }
+  if (id === curId) {
+    pauseAudio();
+    curId = null;
+    audio.src = "";
+    audio.load();
+    if (audioUrl) { URL.revokeObjectURL(audioUrl); audioUrl = null; }
+    $("#player").classList.remove("show", "open");
+    document.body.style.overflow = "";
+    setQueueOverlayOpen(false, false);
+  }
   songs = songs.filter(s => s.id !== id);
   queue = queue.filter(x => x !== id);
   upNext = upNext.filter(x => x !== id);
@@ -2983,9 +3256,9 @@ function deleteSong(id) {
 }
 
 function bindRowGestures(el, s, ctxIds, ctxLabel) {
-  let x0 = 0, dx = 0, timer = null, moved = false;
+  let x0 = 0, dx = 0, timer = null, moved = false, swiped = false;
   el.addEventListener("pointerdown", e => {
-    x0 = e.clientX; dx = 0; moved = false;
+    x0 = e.clientX; dx = 0; moved = false; swiped = false;
     timer = setTimeout(() => { if (!moved) openSongMenu(s, ctxIds, ctxLabel); }, 500);
   });
   el.addEventListener("pointermove", e => {
@@ -2995,9 +3268,23 @@ function bindRowGestures(el, s, ctxIds, ctxLabel) {
   });
   el.addEventListener("pointerup", () => {
     clearTimeout(timer);
-    if (dx > 65) { upNext.push(s.id); renderQueue(); prefetchNextTrack(); persistPlaybackState(); toast("Aggiunto in coda"); }
+    if (dx > 65) {
+      swiped = true;
+      upNext.push(s.id);
+      renderQueue();
+      prefetchNextTrack();
+      persistPlaybackState();
+      toast("Aggiunto in coda");
+    }
     el.style.transform = "";
   });
+  el.addEventListener("click", e => {
+    if (swiped) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      swiped = false;
+    }
+  }, true);
   el.addEventListener("pointercancel", () => { clearTimeout(timer); el.style.transform = ""; });
 }
 
@@ -3057,6 +3344,50 @@ $("#fileInput").onchange = e => { addFiles([...e.target.files]); e.target.value 
 $("#q").oninput = renderSearch;
 $("#qClear").onclick = () => { $("#q").value = ""; renderSearch(); $("#q").focus(); };
 
+$("#homeChips").onclick = e => {
+  const btn = e.target.closest(".chip-btn");
+  if (!btn) return;
+  homeFilter = btn.dataset.filter || "all";
+  renderAll();
+};
+
+$("#sortBtn").onclick = () => {
+  const order = ["az", "recent", "artist"];
+  homeSort = order[(order.indexOf(homeSort) + 1) % order.length];
+  renderAll();
+};
+
+$("#rescueBtn").onclick = async () => {
+  const memSongs = songs.filter(s => s.mem);
+  if (!memSongs.length) { $("#warn").hidden = true; return; }
+  let saved = 0;
+  for (const s of memSongs) {
+    try {
+      const oldId = s.id;
+      const buf = await s.mem.arrayBuffer();
+      const rec = { ...s };
+      delete rec.id;
+      delete rec.mem;
+      if (await writeSongToDb(rec, buf)) {
+        delete s.mem;
+        s.id = rec.id;
+        if (curId === oldId) curId = rec.id;
+        if (ctxId === oldId) ctxId = rec.id;
+        queue = queue.map(x => x === oldId ? rec.id : x);
+        upNext = upNext.map(x => x === oldId ? rec.id : x);
+        lists.forEach(l => {
+          l.songIds = l.songIds.map(x => x === oldId ? rec.id : x);
+          saveList(l);
+        });
+        saved++;
+      }
+    } catch (err) {}
+  }
+  renderAll();
+  persistPlaybackState();
+  toast(saved ? `${saved} brani salvati in memoria!` : "Memoria del dispositivo piena o non disponibile");
+};
+
 $("#newPlBtn").onclick = () => { $("#newPlRow").hidden = !$("#newPlRow").hidden; $("#newPlName").focus(); };
 $("#createPlBtn").onclick = async () => {
   const name = $("#newPlName").value.trim();
@@ -3075,6 +3406,17 @@ $("#createPlBtn").onclick = async () => {
 $("#backLibBtn").onclick = () => { openPlId = null; pickingPl = false; renderLib(); };
 $("#plAddSongsBtn").onclick = () => { pickingPl = true; renderLib(); };
 $("#donePickBtn").onclick = () => { pickingPl = false; renderLib(); };
+$("#plRenameBtn").onclick = () => {
+  const pl = lists.find(x => x.id === openPlId);
+  if (!pl) return;
+  const nextName = prompt("Nuovo nome playlist:", pl.name);
+  if (nextName && nextName.trim()) {
+    pl.name = nextName.trim().slice(0, 40);
+    saveList(pl);
+    renderAll();
+    toast("Playlist rinominata");
+  }
+};
 $("#plDelBtn").onclick = () => {
   if (db) { try { lstore("readwrite").delete(openPlId); } catch (e) {} }
   lists = lists.filter(x => x.id !== openPlId);
@@ -3111,6 +3453,7 @@ $("#repBtn").onclick = () => {
 
 $("#openFullBtn").onclick = () => {
   $("#player").classList.add("open");
+  document.body.style.overflow = "hidden";
   refreshExternalAudioState();
   renderLyrics(false);
   updateActiveLyric(true);
@@ -3118,7 +3461,20 @@ $("#openFullBtn").onclick = () => {
 $("#closeNp").onclick = () => {
   setQueueOverlayOpen(false, false);
   $("#player").classList.remove("open");
+  document.body.style.overflow = "";
 };
+
+let fpSwipeY = 0;
+$("#fpArt").addEventListener("touchstart", e => {
+  if ($("#player").scrollTop <= 2) fpSwipeY = e.touches[0].clientY;
+  else fpSwipeY = 0;
+}, { passive: true });
+$("#fpArt").addEventListener("touchend", e => {
+  if (fpSwipeY && e.changedTouches[0].clientY - fpSwipeY > 90) {
+    $("#closeNp").click();
+  }
+  fpSwipeY = 0;
+}, { passive: true });
 $("#fpMenuBtn").onclick = () => {
   const s = songs.find(x => x.id === curId);
   if (s) openSongMenu(s, queue, ctxName);
@@ -3162,9 +3518,12 @@ $("#sheet").onclick = e => { if (e.target.id === "sheet") $("#sheet").hidden = t
 
 $("#seek").oninput = e => {
   if (isFinite(audio.duration)) {
-    const newPos = (e.target.value / 1000) * audio.duration;
+    const p = e.target.value / 1000;
+    const newPos = p * audio.duration;
     audio.currentTime = newPos;
     lastKnownPos = newPos;
+    $("#seek").style.setProperty("--seek-pct", (p * 100) + "%");
+    $("#player").style.setProperty("--progress", p);
     updateActiveLyric(true);
     safeSetPositionState();
     persistPlaybackState();
@@ -3180,7 +3539,8 @@ audio.ontimeupdate = () => {
   if (isFinite(audio.duration) && audio.duration > 0) {
     const p = audio.currentTime / audio.duration;
     $("#seek").value = p * 1000;
-    $("#player").style.setProperty("--p", (p * 100) + "%");
+    $("#seek").style.setProperty("--seek-pct", (p * 100) + "%");
+    $("#player").style.setProperty("--progress", p);
   }
   updateActiveLyric(false);
 };
@@ -3194,6 +3554,7 @@ const syncIcons = () => {
   const ico = audio.paused ? SVG_PLAY : SVG_PAUSE;
   $("#miniPpIcon").innerHTML = ico;
   $("#fpPpIcon").innerHTML = ico;
+  $("#player").classList.toggle("is-paused", audio.paused);
 };
 audio.onplay = () => {
   userPaused = false;
