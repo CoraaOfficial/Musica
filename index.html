@@ -1213,8 +1213,8 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 37;
-const SESSION_KEY = "hush_locale_state_v37";
+const APP_VERSION = 38;
+const SESSION_KEY = "hush_locale_state_v38";
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -1767,11 +1767,13 @@ async function extractAudioFromZip(zipFile) {
 /* --- PARSER METADATI ID3v2 NATIVO (Titolo, Artista, Copertina, Testo USLT) --- */
 function arrayBufferToBase64(buffer) {
   const bytes = new Uint8Array(buffer);
-  let bin = "";
+  const parts = [];
   for (let k = 0; k < bytes.length; k += 8192) {
-    bin += String.fromCharCode.apply(null, bytes.subarray(k, k + 8192));
+    parts.push(String.fromCharCode.apply(null, bytes.subarray(k, k + 8192)));
   }
-  return btoa(bin);
+  const b64 = btoa(parts.join(""));
+  parts.length = 0;
+  return b64;
 }
 
 function base64ToArrayBuffer(b64) {
@@ -3323,7 +3325,10 @@ function buildZipBlob(entries) {
   ev.setUint32(16, offset, true);
   ev.setUint16(20, 0, true);
 
-  return new Blob([...localParts, ...centralParts, eocd], { type: "application/zip" });
+  const blob = new Blob([...localParts, ...centralParts, eocd], { type: "application/zip" });
+  localParts.length = 0;
+  centralParts.length = 0;
+  return blob;
 }
 
 async function extractAllFilesFromZip(zipFile) {
@@ -3378,8 +3383,8 @@ async function extractAllFilesFromZip(zipFile) {
   return out;
 }
 
-/* --- BACKUP TOTALE IN PIÙ ARCHIVI ZIP DA 60 BRANI --- */
-const ZIP_CHUNK_SIZE = 60;
+/* --- BACKUP TOTALE IN PIÙ ARCHIVI ZIP DA 15 BRANI (OTTIMIZZATO PER RAM iOS) --- */
+const ZIP_CHUNK_SIZE = 15;
 
 function makeTrackSignature(s) {
   return `${s.orig || s.name}__${s.size || 0}`;
@@ -3410,7 +3415,7 @@ function triggerBlobDownload(blob, fileName) {
   a.href = url;
   a.download = fileName;
   a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 15000);
+  setTimeout(() => URL.revokeObjectURL(url), 12000);
 }
 
 $("#expBtn").onclick = async () => {
@@ -3439,8 +3444,9 @@ $("#expBtn").onclick = async () => {
       let audioB64 = null;
       const blob = await getSongBlob(s.id);
       if (blob) {
-        const buf = await blob.arrayBuffer();
+        let buf = await blob.arrayBuffer();
         audioB64 = arrayBufferToBase64(buf);
+        buf = null;
       }
 
       const trackPayload = {
@@ -3457,12 +3463,14 @@ $("#expBtn").onclick = async () => {
       };
 
       const fileNum = String(i + 1).padStart(4, "0");
+      const jsonBytes = enc.encode(JSON.stringify(trackPayload));
+      trackPayload.audioB64 = null;
       zipEntries.push({
         name: `tracks/track_${fileNum}.json`,
-        bytes: enc.encode(JSON.stringify(trackPayload))
+        bytes: jsonBytes
       });
 
-      await pauseTick(25);
+      await pauseTick(45);
     }
 
     const manifestObj = buildManifestObject(idToSig, part + 1, totalParts, start + 1, end);
@@ -3480,7 +3488,7 @@ $("#expBtn").onclick = async () => {
 
     zipEntries.length = 0;
     zipEntries = null;
-    await pauseTick(650);
+    await pauseTick(900);
   }
 
   toast(totalParts > 1 ? `Completati ${totalParts} file ZIP!` : "Archivio pronto!");
@@ -3574,6 +3582,7 @@ $("#impFile").onchange = async e => {
         if (targetSong) {
           sigToSongId.set(sig, targetSong.id);
         }
+        item.audioB64 = null;
       }
 
       if (manifest && Array.isArray(manifest.liked)) {
