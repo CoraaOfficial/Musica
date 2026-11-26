@@ -1213,8 +1213,8 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 40;
-const SESSION_KEY = "hush_locale_state_v40";
+const APP_VERSION = 41;
+const SESSION_KEY = "hush_locale_state_v41";
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -1812,7 +1812,7 @@ function parseID3(buffer) {
       const id = String.fromCharCode(view.getUint8(pos), view.getUint8(pos+1), view.getUint8(pos+2), view.getUint8(pos+3));
       if (!/^[A-Z0-9]{4}$/.test(id)) break;
       let fSize = ver === 4
-        ? ((view.getUint8(pos+4) & 0x7f) << 21) | ((view.getUint8(pos+5) & 0x7f) << 14) | ((view.getUint8(pos+6) & 0x7f) << 7) | (view.getUint8(pos+7) & 0x7f)
+        ? ((view.getUint8(pos+4) & 0x7f) << 21) | ((view.getUint8(pos+5) & 0x7f) << 14) | ((view.getUint8(pos+6) & 0x7f) << 7) | ((view.getUint8(pos+7) & 0x7f)
         : view.getUint32(pos + 4);
       pos += 10;
       if (fSize <= 0 || pos + fSize > end) break;
@@ -2326,8 +2326,7 @@ async function getSongBlob(id) {
     try {
       const buf = await rq(dstore("readonly").get(id));
       if (buf) {
-        const b = new Blob([buf], { type: s.type || "audio/mpeg" });
-        return b;
+        return new Blob([buf], { type: s.type || "audio/mpeg" });
       }
     } catch (e) {}
   }
@@ -3247,7 +3246,7 @@ $("#airBtn").onclick = () => {
   }
 };
 
-/* --- CREATORE ZIP CON RILASCIO IMMEDIATO DEI BUFFER --- */
+/* --- CREATORE ZIP A BLOCCHI DI 100 BRANI IN UNICO FILE FINALE --- */
 const CRC_TABLE = (() => {
   const t = new Uint32Array(256);
   for (let n = 0; n < 256; n++) {
@@ -3404,7 +3403,7 @@ async function extractAllFilesFromZip(zipFile) {
   return out;
 }
 
-/* --- BACKUP TOTALE IN UN SOLO FILE ZIP CON RILASCIO IMMEDIATO DEI BUFFER --- */
+/* --- BACKUP TOTALE ELABORATO A BLOCCHI DI 100 BRANI IN UN SOLO FILE ZIP --- */
 function makeTrackSignature(s) {
   return `${s.orig || s.name}__${s.size || 0}`;
 }
@@ -3428,6 +3427,8 @@ $("#expBtn").onclick = async () => {
     return;
   }
 
+  const CHUNK_SIZE = 100;
+  const totalChunks = Math.max(1, Math.ceil(songs.length / CHUNK_SIZE));
   const enc = new TextEncoder();
   const idToSig = new Map();
   for (const s of songs) {
@@ -3437,9 +3438,10 @@ $("#expBtn").onclick = async () => {
   const zipWriter = createStreamingZipWriter();
 
   const manifestObj = {
-    v: 7,
+    v: 8,
     app: "Hush",
     totalTracks: songs.length,
+    chunkSize: CHUNK_SIZE,
     exportedAt: new Date().toISOString(),
     settings: { shuffle, repeatMode },
     liked: songs.filter(s => s.liked).map(s => s.orig || s.name),
@@ -3452,52 +3454,62 @@ $("#expBtn").onclick = async () => {
   zipWriter.addEntry("manifest.json", manifestBytes);
   manifestBytes = null;
 
-  for (let i = 0; i < songs.length; i++) {
-    const s = songs[i];
-    toast(`Esportazione totale • Brano ${i + 1}/${songs.length}...`);
+  for (let chunkIdx = 0; chunkIdx < totalChunks; chunkIdx++) {
+    const start = chunkIdx * CHUNK_SIZE;
+    const end = Math.min(start + CHUNK_SIZE, songs.length);
 
-    const fileNum = String(i + 1).padStart(4, "0");
-    const mime = s.type || "audio/mpeg";
-    const ext = extFromMime(mime, `${s.orig || s.name}.mp3`);
-    const audioPath = `audio/track_${fileNum}${ext}`;
-    const metaPath = `tracks/track_${fileNum}_meta.json`;
+    for (let i = start; i < end; i++) {
+      const s = songs[i];
+      toast(`Blocco ${chunkIdx + 1}/${totalChunks} • Brano ${i + 1}/${songs.length}...`);
 
-    let hasAudio = false;
-    let blob = await getSongBlob(s.id);
-    let reportedSize = s.size || 0;
-    if (blob) {
-      reportedSize = s.size || blob.size;
-      let buf = await blob.arrayBuffer();
-      blob = null;
-      zipWriter.addEntry(audioPath, buf);
-      buf = null;
-      hasAudio = true;
+      const fileNum = String(i + 1).padStart(4, "0");
+      const mime = s.type || "audio/mpeg";
+      const ext = extFromMime(mime, `${s.orig || s.name}.mp3`);
+      const audioPath = `audio/track_${fileNum}${ext}`;
+      const metaPath = `tracks/track_${fileNum}_meta.json`;
+
+      let hasAudio = false;
+      let blob = await getSongBlob(s.id);
+      let reportedSize = s.size || 0;
+      if (blob) {
+        reportedSize = s.size || blob.size;
+        let buf = await blob.arrayBuffer();
+        blob = null;
+        zipWriter.addEntry(audioPath, buf);
+        buf = null;
+        hasAudio = true;
+      }
+
+      const metaPayload = {
+        sig: idToSig.get(s.id),
+        orig: s.orig || s.name,
+        name: s.name,
+        artist: s.artist || "Artista locale",
+        cover: s.cover || null,
+        lyrics: s.lyrics || null,
+        liked: Boolean(s.liked),
+        size: reportedSize,
+        type: mime,
+        audioFile: hasAudio ? audioPath : null
+      };
+
+      let metaBytes = enc.encode(JSON.stringify(metaPayload));
+      zipWriter.addEntry(metaPath, metaBytes);
+      metaBytes = null;
+
+      if ((i - start) % 10 === 9) {
+        await pauseTick(30);
+      }
     }
 
-    const metaPayload = {
-      sig: idToSig.get(s.id),
-      orig: s.orig || s.name,
-      name: s.name,
-      artist: s.artist || "Artista locale",
-      cover: s.cover || null,
-      lyrics: s.lyrics || null,
-      liked: Boolean(s.liked),
-      size: reportedSize,
-      type: mime,
-      audioFile: hasAudio ? audioPath : null
-    };
-
-    let metaBytes = enc.encode(JSON.stringify(metaPayload));
-    zipWriter.addEntry(metaPath, metaBytes);
-    metaBytes = null;
-
-    if (i % 5 === 4) {
-      await pauseTick(40);
+    if (chunkIdx + 1 < totalChunks) {
+      toast(`Blocco ${chunkIdx + 1}/${totalChunks} completato, pulizia RAM...`);
+      await pauseTick(150);
     }
   }
 
-  toast("Creazione archivio ZIP unico...");
-  await pauseTick(60);
+  toast("Chiusura archivio ZIP unico...");
+  await pauseTick(80);
   let zipBlob = zipWriter.finishBlob();
   triggerBlobDownload(zipBlob, "hush-backup-totale.zip");
   zipBlob = null;
