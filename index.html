@@ -226,6 +226,33 @@ h2 { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; margin: 22px 0 
 }
 .multi-bar[hidden] { display: none; }
 
+/* Colori accento e barra memoria Impostazioni */
+.accent-dots { display: flex; gap: 12px; align-items: center; margin-top: 8px; }
+.accent-dot {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform .12s, border-color .15s;
+}
+.accent-dot.on { border-color: #FFF; transform: scale(1.12); }
+.storage-bar {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-hi);
+  overflow: hidden;
+  margin: 8px 0 6px;
+}
+.storage-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width .3s ease;
+}
+
 .pill-btn {
   background: var(--surface-hi);
   color: var(--text);
@@ -1220,10 +1247,15 @@ input[type=file] { display: none; }
         <h1 id="greeting">Buonasera</h1>
         <span class="top-sub" id="homeSub">La tua musica offline</span>
       </div>
-      <button class="pill-btn primary" id="addBtnHome">
-        <svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-        Importa
-      </button>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="icon-btn" id="openSettingsBtn" aria-label="Impostazioni">
+          <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+        </button>
+        <button class="pill-btn primary" id="addBtnHome">
+          <svg viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+          Importa
+        </button>
+      </div>
     </div>
 
     <div class="warn-box" id="warn" hidden>
@@ -1313,19 +1345,6 @@ input[type=file] { display: none; }
       </div>
 
       <ul id="libList"></ul>
-
-      <div class="settings-card">
-        <div style="font-weight:700;color:#FFF;margin-bottom:8px">Audio, Statistiche & Backup</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="pill-btn" id="crossfadeBtn">Crossfade: Off</button>
-          <button class="pill-btn" id="statsBtn">Il tuo Wrapped</button>
-          <button class="pill-btn" id="expBtn">Backup totale (.ZIP)</button>
-          <button class="pill-btn" id="impBtn">Importa backup (.ZIP)</button>
-          <button class="pill-btn" id="diagBtn">Stato memoria</button>
-        </div>
-        <div id="ver" style="margin-top:10px;font-size:12px"></div>
-        <pre id="diag" hidden></pre>
-      </div>
     </div>
 
     <!-- Dettaglio Playlist / Brani che ti piacciono -->
@@ -1391,6 +1410,75 @@ input[type=file] { display: none; }
     </div>
     <h2 style="margin-top:14px">Brani</h2>
     <ul id="artistSongsList"></ul>
+  </section>
+
+  <!-- VISTA 5: IMPOSTAZIONI -->
+  <section id="viewSettings" hidden>
+    <div class="top-bar">
+      <h1>Impostazioni</h1>
+      <button class="pill-btn" id="backSettingsBtn">‹ Indietro</button>
+    </div>
+
+    <div class="settings-card" style="margin-top:6px">
+      <div style="font-weight:800;font-size:15px;color:#FFF;margin-bottom:8px">Riproduzione</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <div>
+          <div style="font-weight:600;color:#FFF;font-size:14px">Crossfade</div>
+          <div style="font-size:12px;color:var(--muted)">Dissolvenza tra la fine di un brano e il successivo</div>
+        </div>
+        <button class="pill-btn" id="crossfadeBtn">Crossfade: Off</button>
+      </div>
+    </div>
+
+    <div class="settings-card">
+      <div style="font-weight:800;font-size:15px;color:#FFF;margin-bottom:8px">Aspetto</div>
+      <div style="font-weight:600;color:#FFF;font-size:14px">Colore principale</div>
+      <div class="accent-dots" id="accentDots">
+        <button class="accent-dot" data-accent="#1DB954" style="background:#1DB954" aria-label="Verde"></button>
+        <button class="accent-dot" data-accent="#8b5cf6" style="background:#8b5cf6" aria-label="Viola"></button>
+        <button class="accent-dot" data-accent="#3b82f6" style="background:#3b82f6" aria-label="Blu"></button>
+        <button class="accent-dot" data-accent="#e91429" style="background:#e91429" aria-label="Rosso"></button>
+        <button class="accent-dot" data-accent="#f97316" style="background:#f97316" aria-label="Arancione"></button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px">
+        <div>
+          <div style="font-weight:600;color:#FFF;font-size:14px">Sfondo dinamico player</div>
+          <div style="font-size:12px;color:var(--muted)">Colora il player in base alla copertina</div>
+        </div>
+        <button class="pill-btn" id="dynBgBtn">Attivo</button>
+      </div>
+    </div>
+
+    <div class="settings-card">
+      <div style="font-weight:800;font-size:15px;color:#FFF;margin-bottom:8px">Statistiche</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <div>
+          <div style="font-weight:600;color:#FFF;font-size:14px">Il tuo Wrapped</div>
+          <div style="font-size:12px;color:var(--muted)">Brani e artisti più ascoltati offline</div>
+        </div>
+        <button class="pill-btn" id="statsBtn">Apri</button>
+      </div>
+    </div>
+
+    <div class="settings-card">
+      <div style="font-weight:800;font-size:15px;color:#FFF;margin-bottom:6px">Memoria & Aggiornamenti</div>
+      <div class="storage-bar"><div class="storage-fill" id="storageBarFill"></div></div>
+      <div id="storageLabel" style="font-size:12px;color:var(--muted);margin-bottom:10px">Calcolo spazio...</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="pill-btn" id="checkUpdateBtn">Controlla aggiornamenti</button>
+        <button class="pill-btn" id="diagBtn">Stato memoria</button>
+      </div>
+      <div id="ver" style="margin-top:10px;font-size:12px"></div>
+      <pre id="diag" hidden></pre>
+    </div>
+
+    <div class="settings-card">
+      <div style="font-weight:800;font-size:15px;color:#FFF;margin-bottom:8px">Backup</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="pill-btn" id="expBtn">Backup totale (.ZIP)</button>
+        <button class="pill-btn" id="impBtn">Importa backup (.ZIP)</button>
+      </div>
+    </div>
   </section>
 </main>
 
@@ -1618,8 +1706,8 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 46;
-const SESSION_KEY = "hush_locale_state_v46";
+const APP_VERSION = 47;
+const SESSION_KEY = "hush_locale_state_v47";
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -2323,7 +2411,7 @@ function parseID3(buffer) {
 
 /* Estrae colore dominante dalla copertina per sfumatura Spotify */
 function applyCoverColor(dataUrl) {
-  if (!dataUrl) {
+  if (!dynBgEnabled || !dataUrl) {
     document.documentElement.style.setProperty("--np-color", "#26382f");
     return;
   }
@@ -3883,13 +3971,18 @@ function setTab(tab) {
   $("#viewHome").hidden = tab !== "home";
   $("#viewSearch").hidden = tab !== "search";
   $("#viewLib").hidden = tab !== "lib";
+  $("#viewSettings").hidden = tab !== "settings";
   $("#viewArtist").hidden = true;
   $("#tabHome").classList.toggle("on", tab === "home");
   $("#tabSearch").classList.toggle("on", tab === "search");
   $("#tabLib").classList.toggle("on", tab === "lib");
   if (tab === "search") $("#q").focus();
+  if (tab === "settings") refreshStorageBar();
   window.scrollTo(0, 0);
 }
+
+$("#openSettingsBtn").onclick = () => setTab("settings");
+$("#backSettingsBtn").onclick = () => setTab("home");
 
 $("#tabHome").onclick = () => setTab("home");
 $("#tabSearch").onclick = () => setTab("search");
@@ -3986,6 +4079,108 @@ $("#crossfadeBtn").onclick = () => {
   updateCrossfadeBtn();
   toast(crossfadeSec ? `Crossfade impostato a ${crossfadeSec}s` : "Crossfade disattivato");
 };
+
+let dynBgEnabled = localStorage.getItem("hush_dyn_bg") !== "0";
+
+function applyAccentColor(hex) {
+  document.documentElement.style.setProperty("--accent", hex);
+  document.documentElement.style.setProperty("--accent-hi", hex);
+  document.querySelectorAll("#accentDots .accent-dot").forEach(d => {
+    d.classList.toggle("on", d.dataset.accent === hex);
+  });
+}
+applyAccentColor(localStorage.getItem("hush_accent") || "#1DB954");
+
+$("#accentDots").onclick = e => {
+  const dot = e.target.closest(".accent-dot");
+  if (!dot) return;
+  const hex = dot.dataset.accent;
+  localStorage.setItem("hush_accent", hex);
+  applyAccentColor(hex);
+  toast("Colore aggiornato");
+};
+
+function updateDynBgBtn() {
+  const btn = $("#dynBgBtn");
+  if (btn) btn.textContent = dynBgEnabled ? "Attivo" : "Disattivo";
+}
+updateDynBgBtn();
+$("#dynBgBtn").onclick = () => {
+  dynBgEnabled = !dynBgEnabled;
+  localStorage.setItem("hush_dyn_bg", dynBgEnabled ? "1" : "0");
+  updateDynBgBtn();
+  const s = songs.find(x => x.id === curId);
+  applyCoverColor(s ? s.cover : null);
+};
+
+async function refreshStorageBar() {
+  const fill = $("#storageBarFill");
+  const lbl = $("#storageLabel");
+  if (!fill || !lbl) return;
+  if (navigator.storage && navigator.storage.estimate) {
+    try {
+      const est = await navigator.storage.estimate();
+      const usedMB = ((est.usage || 0) / 1048576).toFixed(1);
+      const quotaMB = ((est.quota || 0) / 1048576).toFixed(0);
+      const pct = est.quota ? Math.min(100, Math.max(2, (est.usage / est.quota) * 100)) : 0;
+      fill.style.width = pct.toFixed(1) + "%";
+      lbl.textContent = `${usedMB} MB usati su ~${quotaMB} MB disponibili (${songs.length} brani)`;
+      return;
+    } catch (e) {}
+  }
+  fill.style.width = "0%";
+  lbl.textContent = `${songs.length} brani salvati offline`;
+}
+
+$("#checkUpdateBtn").onclick = async () => {
+  toast("Controllo aggiornamenti...");
+  try {
+    const r = await fetch("version.json?t=" + Date.now(), { cache: "no-store" });
+    const data = await r.json();
+    if (data && data.v > APP_VERSION) {
+      if (confirm(`È disponibile la versione v${data.v} (hai v${APP_VERSION}). Vuoi ricaricare per aggiornare?`)) {
+        location.reload();
+      }
+    } else {
+      toast(`App aggiornata (v${APP_VERSION})`);
+    }
+  } catch (e) {
+    toast("Impossibile controllare (sei offline?)");
+  }
+};
+
+async function exportCollectionZip(pl) {
+  const items = pl.songIds.map(id => songs.find(s => s.id === id)).filter(Boolean);
+  if (!items.length) { toast("Nessun brano da esportare"); return; }
+  toast(`Esportazione ${pl.name}...`);
+  const enc = new TextEncoder();
+  const zipWriter = createStreamingZipWriter();
+  const sigs = items.map(s => makeTrackSignature(s));
+  const manifestObj = {
+    v: 8,
+    app: "Hush",
+    totalTracks: items.length,
+    exportedAt: new Date().toISOString(),
+    playlists: [{ name: pl.name, kind: pl.kind || "playlist", songSigs: sigs }]
+  };
+  zipWriter.addEntry("manifest.json", enc.encode(JSON.stringify(manifestObj, null, 2)));
+  for (let i = 0; i < items.length; i++) {
+    const s = items[i];
+    const blob = await getSongBlob(s.id);
+    if (!blob) continue;
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const safeName = (s.orig || s.name || `track_${i+1}`).replace(/[\\/:*?"<>|]/g, "_");
+    zipWriter.addEntry(`tracks/${String(i+1).padStart(3,"0")}_${safeName}`, bytes);
+  }
+  const zipBlob = zipWriter.finish();
+  const url = URL.createObjectURL(zipBlob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${pl.name.replace(/[\\/:*?"<>|]/g, "_")}.zip`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  toast("Esportazione completata!");
+}
 
 $("#statsBtn").onclick = () => {
   const totalPlays = songs.reduce((acc, s) => acc + (s.playCount || 0), 0);
@@ -4153,6 +4348,7 @@ $("#plMenuBtn").onclick = () => {
       toast("Rinominato");
     }
   });
+  addAct("Esporta in .ZIP", () => exportCollectionZip(pl));
   addAct(isAlbum ? "Segna come Playlist" : "Segna come Album", () => {
     pl.kind = isAlbum ? "playlist" : "album";
     saveList(pl);
