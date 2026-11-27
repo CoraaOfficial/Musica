@@ -1715,8 +1715,8 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 55;
-const SESSION_KEY = "hush_locale_state_v55";
+const APP_VERSION = 56;
+const SESSION_KEY = "hush_locale_state_v56";
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -5101,8 +5101,9 @@ $("#expBtn").onclick = async () => {
   toast("Chiusura archivio ZIP unico...");
   await pauseTick(80);
   let zipBlob = await zipWriter.finishBlob();
-  const dlUrl = URL.createObjectURL(zipBlob);
   const sizeMB = (zipBlob.size / 1048576).toFixed(1);
+  const zipFile = new File([zipBlob], "hush-backup-totale.zip", { type: "application/zip" });
+  const dlUrl = URL.createObjectURL(zipBlob);
   zipBlob = null;
 
   const box = $("#sheetBox");
@@ -5111,17 +5112,31 @@ $("#expBtn").onclick = async () => {
     <div style="padding:10px 6px 14px;text-align:center">
       <div style="font-size:18px;font-weight:800;margin-bottom:4px">Backup pronto!</div>
       <div style="font-size:13px;color:var(--muted);margin-bottom:16px">Archivio unico: ${sizeMB} MB</div>
-      <a class="pill-btn primary" href="${dlUrl}" download="hush-backup-totale.zip" style="display:inline-flex;justify-content:center;width:100%;padding:13px;font-size:15px;text-decoration:none;margin-bottom:10px">Scarica Backup (.ZIP)</a>
+      <button class="pill-btn primary" id="shareDlBtn" style="width:100%;justify-content:center;padding:13px;font-size:15px;margin-bottom:10px">Salva / Scarica Backup (.ZIP)</button>
       <button class="pill-btn" id="closeDlSheetBtn" style="width:100%;justify-content:center">Chiudi</button>
     </div>
   `;
+  $("#shareDlBtn").onclick = async () => {
+    if (navigator.canShare && navigator.canShare({ files: [zipFile] })) {
+      try {
+        await navigator.share({ files: [zipFile], title: "Backup Hush" });
+        return;
+      } catch (e) {
+        if (e && e.name === "AbortError") return;
+      }
+    }
+    const a = document.createElement("a");
+    a.href = dlUrl;
+    a.download = "hush-backup-totale.zip";
+    a.click();
+  };
   $("#closeDlSheetBtn").onclick = () => {
     $("#sheet").hidden = true;
     URL.revokeObjectURL(dlUrl);
     zipWriter.cleanup();
   };
   $("#sheet").hidden = false;
-  toast("Backup pronto: premi Scarica!");
+  toast("Backup pronto: premi Salva!");
 };
 
 $("#impBtn").onclick = () => $("#impFile").click();
