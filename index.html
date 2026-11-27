@@ -206,6 +206,26 @@ h2 { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; margin: 22px 0 
 .icon-btn.add-btn { color: var(--muted); }
 .icon-btn.add-btn.in-collection { color: var(--accent); }
 
+/* Multi-selezione brani */
+.track-row.selected { background: rgba(29, 185, 84, 0.16); border-radius: 10px; }
+.multi-bar {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(74px + env(safe-area-inset-bottom, 0px));
+  background: #242424;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 14px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  z-index: 45;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.65);
+}
+.multi-bar[hidden] { display: none; }
+
 .pill-btn {
   background: var(--surface-hi);
   color: var(--text);
@@ -1228,6 +1248,7 @@ input[type=file] { display: none; }
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
       <h2 style="margin:12px 0" id="homeListTitle">Tutti i tuoi brani</h2>
       <div style="display:flex;align-items:center;gap:8px">
+        <button class="pill-btn" id="homeSelectBtn" style="padding:5px 11px;font-size:11.5px">Seleziona</button>
         <button class="pill-btn" id="sortBtn" style="padding:5px 11px;font-size:11.5px">Ordina: A-Z</button>
         <span id="songCount" style="font-size:12px;font-weight:600;color:var(--muted)">0 brani</span>
       </div>
@@ -1257,6 +1278,7 @@ input[type=file] { display: none; }
       <div class="browse-grid" id="browseGrid"></div>
     </div>
     <div id="searchArtists"></div>
+    <div id="searchCollections"></div>
     <ul id="searchList"></ul>
     <div id="searchEmpty" style="text-align:center;padding:40px 16px;color:var(--muted)" hidden>Nessun brano trovato.</div>
   </section>
@@ -1293,8 +1315,10 @@ input[type=file] { display: none; }
       <ul id="libList"></ul>
 
       <div class="settings-card">
-        <div style="font-weight:700;color:#FFF;margin-bottom:8px">Backup e Stato</div>
+        <div style="font-weight:700;color:#FFF;margin-bottom:8px">Audio, Statistiche & Backup</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="pill-btn" id="crossfadeBtn">Crossfade: Off</button>
+          <button class="pill-btn" id="statsBtn">Il tuo Wrapped</button>
           <button class="pill-btn" id="expBtn">Backup totale (.ZIP)</button>
           <button class="pill-btn" id="impBtn">Importa backup (.ZIP)</button>
           <button class="pill-btn" id="diagBtn">Stato memoria</button>
@@ -1575,6 +1599,15 @@ input[type=file] { display: none; }
   </div>
 </div>
 
+<div class="multi-bar" id="multiBar" hidden>
+  <span id="multiCount" style="font-size:13px;font-weight:700">0 selezionati</span>
+  <div style="display:flex;gap:6px">
+    <button class="pill-btn primary" id="multiAddBtn" style="padding:7px 11px;font-size:12px">+ Playlist</button>
+    <button class="pill-btn" id="multiDelBtn" style="padding:7px 11px;font-size:12px;color:#ff6b6b">Elimina</button>
+    <button class="pill-btn" id="multiCancelBtn" style="padding:7px 11px;font-size:12px">Fine</button>
+  </div>
+</div>
+
 <div id="toast" hidden></div>
 <input type="file" id="fileInput" accept="audio/*,.mp3,.m4a,.wav,.ogg,.aac,.flac,.zip,application/zip,application/x-zip-compressed" multiple>
 <input type="file" id="coverInput" accept="image/*">
@@ -1585,8 +1618,8 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 45;
-const SESSION_KEY = "hush_locale_state_v45";
+const APP_VERSION = 46;
+const SESSION_KEY = "hush_locale_state_v46";
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -1634,6 +1667,10 @@ let libFilter = "all";
 let newCollectionKind = "playlist";
 let currentArtistName = null;
 let prevTabBeforeArtist = "home";
+let selectMode = false;
+let selectedIds = new Set();
+let crossfadeSec = Number(localStorage.getItem("hush_crossfade_sec") || "0");
+let crossfadeFadeTimer = null;
 
 /* --- RILEVAMENTO AUTOMATICO DISPOSITIVO / AIRPLAY --- */
 async function refreshExternalAudioState() {
@@ -2525,7 +2562,8 @@ function coverHtml(cover, likedGrad = false) {
   return SVG_NOTE;
 }
 
-function playlistCoverHtml(validSongs) {
+function playlistCoverHtml(validSongs, customCover = null) {
+  if (customCover) return `<img src="${customCover}" alt="">`;
   const covers = validSongs.map(s => s.cover).filter(Boolean);
   const uniqueCovers = [...new Set(covers)];
   if (uniqueCovers.length >= 4) {
@@ -2543,7 +2581,8 @@ function makeTrackRow(s, ctxIds, ctxLabel, extraBtn = null) {
   bg.innerHTML = `<div class="track-swipe-ico">${SVG_QUEUE_ADD}</div>`;
 
   const row = document.createElement("div");
-  row.className = "track-row" + (s.id === curId ? " playing" : "");
+  const isSel = selectMode && selectedIds.has(s.id);
+  row.className = "track-row" + (s.id === curId ? " playing" : "") + (isSel ? " selected" : "");
 
   const main = document.createElement("button");
   main.className = "track-main";
@@ -2557,7 +2596,16 @@ function makeTrackRow(s, ctxIds, ctxLabel, extraBtn = null) {
       <div class="t-sub">${esc(s.artist || "Artista locale")}</div>
     </div>
   `;
-  main.onclick = () => { play(s.id, ctxIds, false, ctxLabel); };
+  main.onclick = () => {
+    if (selectMode) {
+      if (selectedIds.has(s.id)) selectedIds.delete(s.id);
+      else selectedIds.add(s.id);
+      updateMultiBar();
+      renderAll();
+      return;
+    }
+    play(s.id, ctxIds, false, ctxLabel);
+  };
   bindRowGestures(main, row, bg, s, ctxIds, ctxLabel);
 
   const addBtn = document.createElement("button");
@@ -2640,7 +2688,7 @@ function renderAll() {
     const plLimit = homeFilter === "playlists" ? 6 : 3;
     lists.slice(0, plLimit).forEach(pl => {
       const valid = pl.songIds.map(id => songs.find(s => s.id === id)).filter(Boolean);
-      addQuick(pl.name, playlistCoverHtml(valid), false, () => {
+      addQuick(pl.name, playlistCoverHtml(valid, pl.cover), false, () => {
         setTab("lib");
         openPlId = pl.id;
         pickingPl = false;
@@ -2700,6 +2748,7 @@ function renderSearch() {
     browseEl.hidden = false;
     browseGrid.innerHTML = "";
     $("#searchArtists").innerHTML = "";
+    $("#searchCollections").innerHTML = "";
     const likedCount = songs.filter(s => s.liked).length;
     const lyricsCount = songs.filter(s => s.lyrics && s.lyrics.trim()).length;
     const artists = [...new Set(songs.map(s => (s.artist || "").trim()).filter(a => a && a !== "Artista locale"))].slice(0, 4);
@@ -2769,17 +2818,38 @@ function renderSearch() {
     });
   }
 
+  const colDiv = $("#searchCollections");
+  colDiv.innerHTML = "";
+  const matchCols = lists.filter(pl =>
+    pl.name.toLowerCase().includes(q) || (pl.albumArtist || "").toLowerCase().includes(q)
+  );
+  if (matchCols.length) {
+    const hdrCol = document.createElement("div");
+    hdrCol.style.cssText = "font-weight:800;font-size:14px;padding:10px 0 2px;color:var(--muted)";
+    hdrCol.textContent = "Playlist e Album";
+    colDiv.append(hdrCol);
+    matchCols.slice(0, 6).forEach(pl => {
+      const valid = pl.songIds.map(id => songs.find(s => s.id === id)).filter(Boolean);
+      const kindLabel = pl.kind === "album" ? "Album" : "Playlist";
+      const btn = document.createElement("button");
+      btn.className = "search-artist-row";
+      btn.innerHTML = `<div class="cover-sm">${playlistCoverHtml(valid, pl.cover)}</div><div class="t-info"><div class="t-title">${esc(pl.name)}</div><div class="t-sub">${kindLabel} · ${valid.length} ${valid.length === 1 ? "brano" : "brani"}</div></div>`;
+      btn.onclick = () => { setTab("lib"); openPlId = pl.id; pickingPl = false; renderLib(); };
+      colDiv.append(btn);
+    });
+  }
+
   const filtered = songs.filter(s =>
     s.name.toLowerCase().includes(q) || (s.artist || "").toLowerCase().includes(q)
   );
-  if (matchArtists.length && filtered.length) {
+  if ((matchArtists.length || matchCols.length) && filtered.length) {
     const hdr2 = document.createElement("div");
     hdr2.style.cssText = "font-weight:800;font-size:14px;padding:10px 0 2px;color:var(--muted)";
     hdr2.textContent = "Brani";
     ul.append(hdr2);
   }
   $("#searchEmpty").textContent = "Nessun risultato trovato.";
-  $("#searchEmpty").hidden = filtered.length > 0 || matchArtists.length > 0;
+  $("#searchEmpty").hidden = filtered.length > 0 || matchArtists.length > 0 || matchCols.length > 0;
   const ids = filtered.map(s => s.id);
   filtered.forEach(s => ul.append(makeTrackRow(s, ids, "Risultati ricerca")));
 }
@@ -2823,7 +2893,7 @@ function renderLib() {
         li.className = "track-row";
         li.innerHTML = `
           <button class="track-main">
-            <div class="cover-sm">${playlistCoverHtml(validSongs)}</div>
+            <div class="cover-sm">${playlistCoverHtml(validSongs, pl.cover)}</div>
             <div class="t-info">
               <div class="t-title">${esc(pl.name)}</div>
               <div class="t-sub">${kindLabel} • ${validSongs.length} ${validSongs.length === 1 ? "brano" : "brani"}</div>
@@ -2887,7 +2957,7 @@ function renderLib() {
 
   const hero = $("#plHeroCover");
   hero.className = "pl-cover-lg" + (isLikedView ? " liked-grad" : "");
-  hero.innerHTML = isLikedView ? coverHtml(null, true) : playlistCoverHtml(items);
+  hero.innerHTML = isLikedView ? coverHtml(null, true) : playlistCoverHtml(items, pl.cover);
 
   const ul = $("#plSongsList");
   ul.innerHTML = "";
@@ -3032,6 +3102,26 @@ function startTrackImmediate(id, urlToPlay, fromQueue, label) {
   audio.pause();
   audio.src = audioUrl;
   audio.load();
+  if (crossfadeFadeTimer) { clearInterval(crossfadeFadeTimer); crossfadeFadeTimer = null; }
+  if (crossfadeSec > 0) {
+    audio.volume = 0.05;
+    const stepMs = 50;
+    const totalMs = Math.min(crossfadeSec * 400, 1500);
+    const inc = 0.95 / Math.max(1, totalMs / stepMs);
+    crossfadeFadeTimer = setInterval(() => {
+      if (audio.volume + inc >= 1) {
+        audio.volume = 1;
+        clearInterval(crossfadeFadeTimer);
+        crossfadeFadeTimer = null;
+      } else {
+        audio.volume = Math.min(1, audio.volume + inc);
+      }
+    }, stepMs);
+  } else {
+    audio.volume = 1;
+  }
+  s.playCount = (s.playCount || 0) + 1;
+  saveSongMeta(s);
   tryPlayElement();
 
   if (prevUrl && prevUrl !== audioUrl) {
@@ -3823,6 +3913,106 @@ $("#sortBtn").onclick = () => {
   renderAll();
 };
 
+function updateMultiBar() {
+  const bar = $("#multiBar");
+  if (!bar) return;
+  bar.hidden = !selectMode;
+  $("#multiCount").textContent = `${selectedIds.size} selezionat${selectedIds.size === 1 ? "o" : "i"}`;
+  $("#homeSelectBtn").classList.toggle("primary", selectMode);
+  $("#homeSelectBtn").textContent = selectMode ? "Fine" : "Seleziona";
+}
+
+$("#homeSelectBtn").onclick = () => {
+  selectMode = !selectMode;
+  if (!selectMode) selectedIds.clear();
+  updateMultiBar();
+  renderAll();
+};
+
+$("#multiCancelBtn").onclick = () => {
+  selectMode = false;
+  selectedIds.clear();
+  updateMultiBar();
+  renderAll();
+};
+
+$("#multiDelBtn").onclick = () => {
+  if (!selectedIds.size) return;
+  if (!confirm(`Eliminare ${selectedIds.size} brani dal telefono?`)) return;
+  [...selectedIds].forEach(id => deleteSong(id));
+  selectMode = false;
+  selectedIds.clear();
+  updateMultiBar();
+};
+
+$("#multiAddBtn").onclick = () => {
+  if (!selectedIds.size) { toast("Seleziona almeno un brano"); return; }
+  const box = $("#sheetBox");
+  box.innerHTML = `<div class="sheet-handle"></div><div style="font-weight:700;font-size:15px;padding:8px 6px 4px">Aggiungi ${selectedIds.size} brani a...</div>`;
+  lists.forEach(pl => {
+    const b = document.createElement("button");
+    b.className = "act";
+    b.textContent = `${pl.kind === "album" ? "Album" : "Playlist"}: ${pl.name}`;
+    b.onclick = () => {
+      selectedIds.forEach(id => { if (!pl.songIds.includes(id)) pl.songIds.push(id); });
+      saveList(pl);
+      $("#sheet").hidden = true;
+      selectMode = false;
+      selectedIds.clear();
+      updateMultiBar();
+      renderAll();
+      toast(`Aggiunti a ${pl.name}`);
+    };
+    box.append(b);
+  });
+  if (!lists.length) {
+    const emp = document.createElement("div");
+    emp.style.cssText = "padding:16px;text-align:center;color:var(--sub);font-size:13px";
+    emp.textContent = "Nessuna playlist o album disponibile.";
+    box.append(emp);
+  }
+  $("#sheet").hidden = false;
+};
+
+function updateCrossfadeBtn() {
+  const btn = $("#crossfadeBtn");
+  if (btn) btn.textContent = crossfadeSec ? `Crossfade: ${crossfadeSec}s` : "Crossfade: Off";
+}
+updateCrossfadeBtn();
+$("#crossfadeBtn").onclick = () => {
+  const opts = [0, 2, 4, 6];
+  crossfadeSec = opts[(opts.indexOf(crossfadeSec) + 1) % opts.length];
+  localStorage.setItem("hush_crossfade_sec", String(crossfadeSec));
+  updateCrossfadeBtn();
+  toast(crossfadeSec ? `Crossfade impostato a ${crossfadeSec}s` : "Crossfade disattivato");
+};
+
+$("#statsBtn").onclick = () => {
+  const totalPlays = songs.reduce((acc, s) => acc + (s.playCount || 0), 0);
+  const topSongs = [...songs].filter(s => (s.playCount || 0) > 0).sort((a, b) => (b.playCount || 0) - (a.playCount || 0)).slice(0, 5);
+  const artMap = new Map();
+  songs.forEach(s => {
+    const pc = s.playCount || 0;
+    if (!pc) return;
+    splitArtists(s.artist).forEach(a => artMap.set(a, (artMap.get(a) || 0) + pc));
+  });
+  const topArts = [...artMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
+
+  const box = $("#sheetBox");
+  box.innerHTML = `
+    <div class="sheet-handle"></div>
+    <div style="padding:8px 6px 12px">
+      <div style="font-size:18px;font-weight:800;margin-bottom:4px">Il tuo Wrapped</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:14px">${totalPlays} riproduzioni totali · ${songs.length} brani</div>
+      <div style="font-weight:700;font-size:13px;color:var(--accent);margin-bottom:6px">BRANI PIÙ ASCOLTATI</div>
+      ${topSongs.length ? topSongs.map((s, i) => `<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13.5px"><span>${i + 1}. ${esc(s.name)}</span><span style="color:var(--muted)">${s.playCount}</span></div>`).join("") : '<div style="font-size:13px;color:var(--sub)">Nessun ascolto registrato ancora.</div>'}
+      <div style="font-weight:700;font-size:13px;color:var(--accent);margin:14px 0 6px">ARTISTI TOP</div>
+      ${topArts.length ? topArts.map(([a, c], i) => `<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13.5px"><span>${i + 1}. ${esc(a)}</span><span style="color:var(--muted)">${c}</span></div>`).join("") : '<div style="font-size:13px;color:var(--sub)">Nessun artista ancora.</div>'}
+    </div>
+  `;
+  $("#sheet").hidden = false;
+};
+
 $("#rescueBtn").onclick = async () => {
   const memSongs = songs.filter(s => s.mem);
   if (!memSongs.length) { $("#warn").hidden = true; return; }
@@ -3919,6 +4109,39 @@ $("#plMenuBtn").onclick = () => {
         renderAll();
         toast(pl.albumArtist ? `Artista impostato: ${pl.albumArtist}` : "Artista rimosso");
       }
+    });
+  }
+  addAct("Cambia copertina", () => {
+    $("#coverInput").onchange = e => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const c = document.createElement("canvas");
+          c.width = c.height = 400;
+          const ctx = c.getContext("2d");
+          const min = Math.min(img.width, img.height);
+          ctx.drawImage(img, (img.width - min)/2, (img.height - min)/2, min, min, 0, 0, 400, 400);
+          pl.cover = c.toDataURL("image/jpeg", 0.82);
+          saveList(pl);
+          renderAll();
+          toast("Copertina aggiornata");
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(f);
+      e.target.value = "";
+    };
+    $("#coverInput").click();
+  });
+  if (pl.cover) {
+    addAct("Rimuovi copertina personalizzata", () => {
+      pl.cover = null;
+      saveList(pl);
+      renderAll();
+      toast("Copertina rimossa");
     });
   }
   addAct("Rinomina", () => {
@@ -4132,6 +4355,12 @@ audio.ontimeupdate = () => {
     $("#seek").style.setProperty("--seek-pct", (p * 100) + "%");
     $("#lfsSeek").style.setProperty("--seek-pct", (p * 100) + "%");
     $("#player").style.setProperty("--progress", p);
+    if (crossfadeSec > 0 && !crossfadeFadeTimer && audio.duration > crossfadeSec + 2) {
+      const rem = audio.duration - audio.currentTime;
+      if (rem <= crossfadeSec && rem > 0) {
+        audio.volume = Math.max(0.05, Math.min(1, rem / crossfadeSec));
+      }
+    }
   }
   updateActiveLyric(false);
 };
