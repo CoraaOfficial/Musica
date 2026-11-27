@@ -1715,8 +1715,8 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 53;
-const SESSION_KEY = "hush_locale_state_v53";
+const APP_VERSION = 54;
+const SESSION_KEY = "hush_locale_state_v54";
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -5019,11 +5019,22 @@ $("#expBtn").onclick = async () => {
     totalTracks: songs.length,
     chunkSize: CHUNK_SIZE,
     exportedAt: new Date().toISOString(),
-    settings: { shuffle, repeatMode },
+    settings: {
+      shuffle,
+      repeatMode,
+      crossfadeSec,
+      accent: localStorage.getItem("hush_accent") || "#1DB954",
+      dynBgEnabled,
+      homeFilter,
+      homeSort,
+      libFilter
+    },
     liked: songs.filter(s => s.liked).map(s => s.orig || s.name),
     playlists: lists.map(pl => ({
       name: pl.name,
       kind: pl.kind || "playlist",
+      albumArtist: pl.albumArtist || null,
+      cover: pl.cover || null,
       songSigs: pl.songIds.map(id => idToSig.get(id)).filter(Boolean)
     }))
   };
@@ -5066,6 +5077,7 @@ $("#expBtn").onclick = async () => {
         cover: s.cover || null,
         lyrics: s.lyrics || null,
         liked: Boolean(s.liked),
+        playCount: s.playCount || 0,
         size: reportedSize,
         type: mime,
         audioFile: hasAudio ? audioPath : null
@@ -5127,6 +5139,23 @@ $("#impFile").onchange = async e => {
         if (manifest && manifest.settings) {
           if (typeof manifest.settings.shuffle === "boolean") shuffle = manifest.settings.shuffle;
           if (typeof manifest.settings.repeatMode === "number") repeatMode = manifest.settings.repeatMode;
+          if (typeof manifest.settings.crossfadeSec === "number") {
+            crossfadeSec = manifest.settings.crossfadeSec;
+            localStorage.setItem("hush_crossfade_sec", String(crossfadeSec));
+            updateCrossfadeBtn();
+          }
+          if (manifest.settings.accent) {
+            localStorage.setItem("hush_accent", manifest.settings.accent);
+            applyAccentColor(manifest.settings.accent);
+          }
+          if (typeof manifest.settings.dynBgEnabled === "boolean") {
+            dynBgEnabled = manifest.settings.dynBgEnabled;
+            localStorage.setItem("hush_dyn_bg", dynBgEnabled ? "1" : "0");
+            updateDynBgBtn();
+          }
+          if (manifest.settings.homeFilter) homeFilter = manifest.settings.homeFilter;
+          if (manifest.settings.homeSort) homeSort = manifest.settings.homeSort;
+          if (manifest.settings.libFilter) libFilter = manifest.settings.libFilter;
         }
 
         const metaEntries = filesInZip
@@ -5244,6 +5273,23 @@ $("#impFile").onchange = async e => {
         if (manifest && manifest.settings) {
           if (typeof manifest.settings.shuffle === "boolean") shuffle = manifest.settings.shuffle;
           if (typeof manifest.settings.repeatMode === "number") repeatMode = manifest.settings.repeatMode;
+          if (typeof manifest.settings.crossfadeSec === "number") {
+            crossfadeSec = manifest.settings.crossfadeSec;
+            localStorage.setItem("hush_crossfade_sec", String(crossfadeSec));
+            updateCrossfadeBtn();
+          }
+          if (manifest.settings.accent) {
+            localStorage.setItem("hush_accent", manifest.settings.accent);
+            applyAccentColor(manifest.settings.accent);
+          }
+          if (typeof manifest.settings.dynBgEnabled === "boolean") {
+            dynBgEnabled = manifest.settings.dynBgEnabled;
+            localStorage.setItem("hush_dyn_bg", dynBgEnabled ? "1" : "0");
+            updateDynBgBtn();
+          }
+          if (manifest.settings.homeFilter) homeFilter = manifest.settings.homeFilter;
+          if (manifest.settings.homeSort) homeSort = manifest.settings.homeSort;
+          if (manifest.settings.libFilter) libFilter = manifest.settings.libFilter;
         }
         const incomingSongs = Array.isArray(d.songs) ? d.songs : (Array.isArray(d.tracksMeta) ? d.tracksMeta : []);
         for (const item of incomingSongs) {
@@ -5257,6 +5303,7 @@ $("#impFile").onchange = async e => {
             if (item.cover) targetSong.cover = item.cover;
             if (item.lyrics !== undefined) targetSong.lyrics = item.lyrics;
             if (typeof item.liked === "boolean") targetSong.liked = item.liked;
+            if (typeof item.playCount === "number") targetSong.playCount = Math.max(targetSong.playCount || 0, item.playCount);
             await saveSongMetaAsync(targetSong);
             sigToSongId.set(sig, targetSong.id);
           }
