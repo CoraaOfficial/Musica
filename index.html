@@ -1272,6 +1272,11 @@ input[type=file] { display: none; }
 
     <div class="quick-grid" id="quickGrid"></div>
 
+    <div id="recentPlayedSection" hidden>
+      <h2>Ascoltati di recente</h2>
+      <div class="h-scroll" id="recentPlayedCarousel"></div>
+    </div>
+
     <div id="recentSection" hidden>
       <h2 style="margin-top:6px">Aggiunti di recente</h2>
       <div class="h-scroll" id="recentCarousel"></div>
@@ -1466,6 +1471,7 @@ input[type=file] { display: none; }
       <div id="storageLabel" style="font-size:12px;color:var(--muted);margin-bottom:10px">Calcolo spazio...</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="pill-btn" id="checkUpdateBtn">Controlla aggiornamenti</button>
+        <button class="pill-btn" id="dedupBtn">Trova duplicati</button>
         <button class="pill-btn" id="diagBtn">Stato memoria</button>
       </div>
       <div id="ver" style="margin-top:10px;font-size:12px"></div>
@@ -1706,8 +1712,8 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 48;
-const SESSION_KEY = "hush_locale_state_v48";
+const APP_VERSION = 49;
+const SESSION_KEY = "hush_locale_state_v49";
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -2785,6 +2791,29 @@ function renderAll() {
     });
   }
 
+  const recentPlayedSec = $("#recentPlayedSection");
+  const recentPlayedCar = $("#recentPlayedCarousel");
+  let rpIds = [];
+  try { rpIds = JSON.parse(localStorage.getItem("hush_recent_played") || "[]"); } catch (e) {}
+  const rpSongs = rpIds.map(id => songs.find(s => s.id === id)).filter(Boolean);
+  const showRp = (homeFilter === "all" || homeFilter === "songs") && rpSongs.length > 0;
+  recentPlayedSec.hidden = !showRp;
+  if (showRp) {
+    recentPlayedCar.innerHTML = "";
+    const rpValidIds = rpSongs.map(s => s.id);
+    rpSongs.forEach(s => {
+      const card = document.createElement("button");
+      card.className = "sq-card";
+      card.innerHTML = `
+        <div class="sq-art">${coverHtml(s.cover)}</div>
+        <div class="sq-title">${esc(s.name)}</div>
+        <div class="sq-sub">${esc(s.artist || "Artista locale")}</div>
+      `;
+      card.onclick = () => play(s.id, rpValidIds, false, "Ascoltati di recente");
+      recentPlayedCar.append(card);
+    });
+  }
+
   const recentSec = $("#recentSection");
   const recentCar = $("#recentCarousel");
   const showRecent = (homeFilter === "all" || homeFilter === "songs") && songs.length > 0;
@@ -3210,6 +3239,11 @@ function startTrackImmediate(id, urlToPlay, fromQueue, label) {
   }
   s.playCount = (s.playCount || 0) + 1;
   saveSongMeta(s);
+  try {
+    let rp = JSON.parse(localStorage.getItem("hush_recent_played") || "[]");
+    rp = [s.id, ...rp.filter(x => x !== s.id)].slice(0, 12);
+    localStorage.setItem("hush_recent_played", JSON.stringify(rp));
+  } catch (e) {}
   tryPlayElement();
 
   if (prevUrl && prevUrl !== audioUrl) {
@@ -4181,6 +4215,24 @@ async function exportCollectionZip(pl) {
   setTimeout(() => URL.revokeObjectURL(url), 10000);
   toast("Esportazione completata!");
 }
+
+$("#dedupBtn").onclick = () => {
+  const seen = new Map();
+  const dups = [];
+  songs.forEach(s => {
+    const key = `${(s.name || "").trim().toLowerCase()}|${(s.artist || "").trim().toLowerCase()}`;
+    if (seen.has(key)) dups.push(s);
+    else seen.set(key, s);
+  });
+  if (!dups.length) {
+    toast("Nessun brano duplicato trovato!");
+    return;
+  }
+  if (confirm(`Trovati ${dups.length} brani duplicati. Vuoi eliminarli?`)) {
+    dups.forEach(d => deleteSong(d.id));
+    toast(`Eliminati ${dups.length} duplicati`);
+  }
+};
 
 $("#statsBtn").onclick = () => {
   const totalPlays = songs.reduce((acc, s) => acc + (s.playCount || 0), 0);
