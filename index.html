@@ -1715,8 +1715,8 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 57;
-const SESSION_KEY = "hush_locale_state_v57";
+const APP_VERSION = 58;
+const SESSION_KEY = "hush_locale_state_v58";
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -4815,18 +4815,68 @@ async function createStreamingZipWriter() {
   let offset = 0;
   let count = 0;
 
-  let opfsRoot = null, opfsName = "hush_backup_tmp.zip", writable = null, fh = null;
+  let opfsRoot = null, opfsName = "hush_backup_tmp.zip", fh = null, worker = null, writable = null;
   const parts = [];
-  if (navigator.storage && typeof navigator.storage.getDirectory === "function") {
+
+  if (navigator.storage && typeof navigator.storage.getDirectory === "function" && typeof Worker !== "undefined") {
     try {
       opfsRoot = await navigator.storage.getDirectory();
       fh = await opfsRoot.getFileHandle(opfsName, { create: true });
-      if (typeof fh.createWritable === "function") {
-        writable = await fh.createWritable();
-      }
+      const workerCode = `
+        let ah = null, pos = 0;
+        self.onmessage = async e => {
+          const m = e.data;
+          try {
+            if (m.cmd === "init") {
+              const root = await navigator.storage.getDirectory();
+              const f = await root.getFileHandle(m.name, { create: true });
+              ah = await f.createSyncAccessHandle();
+              ah.truncate(0);
+              pos = 0;
+              self.postMessage({ id: m.id, ok: true });
+            } else if (m.cmd === "write") {
+              const u8 = new Uint8Array(m.buf);
+              ah.write(u8, { at: pos });
+              pos += u8.length;
+              self.postMessage({ id: m.id, ok: true });
+            } else if (m.cmd === "close") {
+              ah.flush();
+              ah.close();
+              ah = null;
+              self.postMessage({ id: m.id, ok: true });
+            }
+          } catch (err) {
+            self.postMessage({ id: m.id, ok: false, err: err && err.message ? err.message : String(err) });
+          }
+        };
+      `;
+      const wBlob = new Blob([workerCode], { type: "application/javascript" });
+      const wUrl = URL.createObjectURL(wBlob);
+      const w = new Worker(wUrl);
+      URL.revokeObjectURL(wUrl);
+      let msgId = 0;
+      const pending = new Map();
+      w.onmessage = e => {
+        const p = pending.get(e.data.id);
+        if (p) {
+          pending.delete(e.data.id);
+          e.data.ok ? p.res() : p.rej(new Error(e.data.err));
+        }
+      };
+      const callW = (msg, transfer = []) => new Promise((res, rej) => {
+        const id = ++msgId;
+        pending.set(id, { res, rej });
+        w.postMessage({ ...msg, id }, transfer);
+      });
+      await callW({ cmd: "init", name: opfsName });
+      worker = { w, callW };
     } catch (e) {
-      writable = null;
+      worker = null;
     }
+  }
+
+  if (!worker && fh && typeof fh.createWritable === "function") {
+    try { writable = await fh.createWritable(); } catch (e) { writable = null; }
   }
 
   async function addEntry(name, rawInput) {
@@ -4850,7 +4900,10 @@ async function createStreamingZipWriter() {
     lv.setUint16(28, 0, true);
     localHeader.set(nameBytes, 30);
 
-    if (writable) {
+    if (worker) {
+      await worker.callW({ cmd: "write", buf: localHeader.buffer }, [localHeader.buffer]);
+      await worker.callW({ cmd: "write", buf: dataBytes.buffer }, [dataBytes.buffer]);
+    } else if (writable) {
       await writable.write(localHeader);
       await writable.write(dataBytes);
     } else {
@@ -4898,6 +4951,16 @@ async function createStreamingZipWriter() {
     ev.setUint32(12, centralSize, true);
     ev.setUint32(16, offset, true);
     ev.setUint16(20, 0, true);
+
+    if (worker) {
+      for (const ch of centralDir) await worker.callW({ cmd: "write", buf: ch.buffer }, [ch.buffer]);
+      await worker.callW({ cmd: "write", buf: eocd.buffer }, [eocd.buffer]);
+      await worker.callW({ cmd: "close" });
+      worker.w.terminate();
+      worker = null;
+      centralDir.splice(0, centralDir.length);
+      return await fh.getFile();
+    }
 
     if (writable) {
       for (const ch of centralDir) await writable.write(ch);
