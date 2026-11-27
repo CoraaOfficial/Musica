@@ -1715,8 +1715,8 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 51;
-const SESSION_KEY = "hush_locale_state_v51";
+const APP_VERSION = 52;
+const SESSION_KEY = "hush_locale_state_v52";
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -4214,7 +4214,7 @@ async function exportCollectionZip(pl) {
   if (!items.length) { toast("Nessun brano da esportare"); return; }
   toast(`Esportazione ${pl.name}...`);
   const enc = new TextEncoder();
-  const zipWriter = createStreamingZipWriter();
+  const zipWriter = await createStreamingZipWriter();
   const sigs = items.map(s => makeTrackSignature(s));
   const manifestObj = {
     v: 8,
@@ -4223,14 +4223,14 @@ async function exportCollectionZip(pl) {
     exportedAt: new Date().toISOString(),
     playlists: [{ name: pl.name, kind: pl.kind || "playlist", songSigs: sigs }]
   };
-  zipWriter.addEntry("manifest.json", enc.encode(JSON.stringify(manifestObj, null, 2)));
+  await zipWriter.addEntry("manifest.json", enc.encode(JSON.stringify(manifestObj, null, 2)));
   for (let i = 0; i < items.length; i++) {
     const s = items[i];
     const blob = await getSongBlob(s.id);
     if (!blob) continue;
     const bytes = new Uint8Array(await blob.arrayBuffer());
     const safeName = (s.orig || s.name || `track_${i+1}`).replace(/[\\/:*?"<>|]/g, "_");
-    zipWriter.addEntry(`tracks/${String(i+1).padStart(3,"0")}_${safeName}`, bytes);
+    await zipWriter.addEntry(`tracks/${String(i+1).padStart(3,"0")}_${safeName}`, bytes);
   }
   const zipBlob = zipWriter.finish();
   const url = URL.createObjectURL(zipBlob);
@@ -4809,14 +4809,27 @@ function crc32Bytes(bytes) {
   return (c ^ 0xffffffff) >>> 0;
 }
 
-function createStreamingZipWriter() {
+async function createStreamingZipWriter() {
   const enc = new TextEncoder();
-  const parts = [];
   const centralDir = [];
   let offset = 0;
   let count = 0;
 
-  function addEntry(name, rawInput) {
+  let opfsRoot = null, opfsName = "hush_backup_tmp.zip", writable = null, fh = null;
+  const parts = [];
+  if (navigator.storage && typeof navigator.storage.getDirectory === "function") {
+    try {
+      opfsRoot = await navigator.storage.getDirectory();
+      fh = await opfsRoot.getFileHandle(opfsName, { create: true });
+      if (typeof fh.createWritable === "function") {
+        writable = await fh.createWritable();
+      }
+    } catch (e) {
+      writable = null;
+    }
+  }
+
+  async function addEntry(name, rawInput) {
     const nameBytes = enc.encode(name);
     let dataBytes = rawInput instanceof Uint8Array ? rawInput : new Uint8Array(rawInput);
     const crc = crc32Bytes(dataBytes);
@@ -4837,7 +4850,12 @@ function createStreamingZipWriter() {
     lv.setUint16(28, 0, true);
     localHeader.set(nameBytes, 30);
 
-    parts.push(localHeader, dataBytes);
+    if (writable) {
+      await writable.write(localHeader);
+      await writable.write(dataBytes);
+    } else {
+      parts.push(localHeader, dataBytes);
+    }
 
     const centralHeader = new Uint8Array(46 + nameBytes.length);
     const cv = new DataView(centralHeader.buffer);
@@ -4866,7 +4884,7 @@ function createStreamingZipWriter() {
     dataBytes = null;
   }
 
-  function finishBlob() {
+  async function finishBlob() {
     let centralSize = 0;
     for (const ch of centralDir) centralSize += ch.length;
 
@@ -4881,13 +4899,27 @@ function createStreamingZipWriter() {
     ev.setUint32(16, offset, true);
     ev.setUint16(20, 0, true);
 
+    if (writable) {
+      for (const ch of centralDir) await writable.write(ch);
+      await writable.write(eocd);
+      await writable.close();
+      centralDir.splice(0, centralDir.length);
+      return await fh.getFile();
+    }
+
     const blob = new Blob([...parts, ...centralDir, eocd], { type: "application/zip" });
     parts.splice(0, parts.length);
     centralDir.splice(0, centralDir.length);
     return blob;
   }
 
-  return { addEntry, finishBlob };
+  async function cleanup() {
+    if (opfsRoot) {
+      try { await opfsRoot.removeEntry(opfsName); } catch (e) {}
+    }
+  }
+
+  return { addEntry, finishBlob, cleanup };
 }
 
 async function extractAllFilesFromZip(zipFile) {
@@ -4979,7 +5011,7 @@ $("#expBtn").onclick = async () => {
     idToSig.set(s.id, makeTrackSignature(s));
   }
 
-  const zipWriter = createStreamingZipWriter();
+  const zipWriter = await createStreamingZipWriter();
 
   const manifestObj = {
     v: 8,
@@ -4996,7 +5028,7 @@ $("#expBtn").onclick = async () => {
     }))
   };
   let manifestBytes = enc.encode(JSON.stringify(manifestObj, null, 2));
-  zipWriter.addEntry("manifest.json", manifestBytes);
+  await zipWriter.addEntry("manifest.json", manifestBytes);
   manifestBytes = null;
 
   for (let chunkIdx = 0; chunkIdx < totalChunks; chunkIdx++) {
@@ -5020,7 +5052,7 @@ $("#expBtn").onclick = async () => {
         reportedSize = s.size || blob.size;
         let buf = await blob.arrayBuffer();
         blob = null;
-        zipWriter.addEntry(audioPath, buf);
+        await zipWriter.addEntry(audioPath, buf);
         buf = null;
         hasAudio = true;
       }
@@ -5040,7 +5072,7 @@ $("#expBtn").onclick = async () => {
       };
 
       let metaBytes = enc.encode(JSON.stringify(metaPayload));
-      zipWriter.addEntry(metaPath, metaBytes);
+      await zipWriter.addEntry(metaPath, metaBytes);
       metaBytes = null;
 
       if ((i - start) % 10 === 9) {
@@ -5056,7 +5088,8 @@ $("#expBtn").onclick = async () => {
 
   toast("Chiusura archivio ZIP unico...");
   await pauseTick(80);
-  let zipBlob = zipWriter.finishBlob();
+  let zipBlob = await zipWriter.finishBlob();
+  setTimeout(() => zipWriter.cleanup(), 30000);
   triggerBlobDownload(zipBlob, "hush-backup-totale.zip");
   zipBlob = null;
   toast("Backup totale ZIP pronto!");
