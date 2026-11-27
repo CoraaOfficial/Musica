@@ -1572,7 +1572,10 @@ input[type=file] { display: none; }
       <div class="lfs-title" id="lfsTitle">Titolo</div>
       <div class="lfs-artist" id="lfsArtist">Artista</div>
     </div>
-    <button class="pill-btn" id="lfsEditBtn" style="padding:6px 12px;font-size:11.5px">Modifica</button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="pill-btn" id="lfsCopyBtn" style="padding:6px 12px;font-size:11.5px">Copia</button>
+      <button class="pill-btn" id="lfsEditBtn" style="padding:6px 12px;font-size:11.5px">Modifica</button>
+    </div>
   </div>
   <div class="lfs-scroll" id="lfsBox"></div>
   <div class="lfs-foot">
@@ -1712,8 +1715,8 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 49;
-const SESSION_KEY = "hush_locale_state_v49";
+const APP_VERSION = 50;
+const SESSION_KEY = "hush_locale_state_v50";
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -2999,6 +3002,21 @@ function renderLib() {
       `;
       liLiked.onclick = () => { openPlId = "LIKED"; renderLib(); };
       ul.append(liLiked);
+
+      const topCount = songs.filter(s => (s.playCount || 0) > 0).length;
+      const liTop = document.createElement("li");
+      liTop.className = "track-row";
+      liTop.innerHTML = `
+        <button class="track-main">
+          <div class="cover-sm" style="background:linear-gradient(135deg,#1db954,#0d4a22)"><svg viewBox="0 0 24 24" style="color:#FFF"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg></div>
+          <div class="t-info">
+            <div class="t-title">I più ascoltati</div>
+            <div class="t-sub">Playlist smart • ${Math.min(20, topCount)} ${Math.min(20, topCount) === 1 ? "brano" : "brani"}</div>
+          </div>
+        </button>
+      `;
+      liTop.onclick = () => { openPlId = "TOP_PLAYED"; renderLib(); };
+      ul.append(liTop);
     }
 
     lists
@@ -3024,7 +3042,13 @@ function renderLib() {
   }
 
   const isLikedView = openPlId === "LIKED";
-  const pl = isLikedView ? { name: "Brani che ti piacciono" } : lists.find(x => x.id === openPlId);
+  const isTopView = openPlId === "TOP_PLAYED";
+  const isSmartView = isLikedView || isTopView;
+  const pl = isLikedView
+    ? { name: "Brani che ti piacciono" }
+    : isTopView
+      ? { name: "I più ascoltati" }
+      : lists.find(x => x.id === openPlId);
   if (!pl) { openPlId = null; renderLib(); return; }
 
   if (pickingPl && !isLikedView) {
@@ -3054,27 +3078,29 @@ function renderLib() {
 
   const items = isLikedView
     ? songs.filter(s => s.liked)
-    : pl.songIds.map(id => songs.find(s => s.id === id)).filter(Boolean);
+    : isTopView
+      ? [...songs].filter(s => (s.playCount || 0) > 0).sort((a, b) => (b.playCount || 0) - (a.playCount || 0)).slice(0, 20)
+      : pl.songIds.map(id => songs.find(s => s.id === id)).filter(Boolean);
 
-  const isAlbum = !isLikedView && pl.kind === "album";
+  const isAlbum = !isSmartView && pl.kind === "album";
   const albumArtistDisplay = isAlbum
     ? (pl.albumArtist || [...new Set(items.map(s => (s.artist || "").trim()).filter(a => a && a !== "Artista locale"))].join(", ") || "")
     : "";
   $("#plKindLabel").textContent = isAlbum ? "ALBUM" : "PLAYLIST";
   $("#plTitle").textContent = pl.name;
   $("#plSub").textContent = (albumArtistDisplay ? albumArtistDisplay + " • " : "") + `${items.length} ${items.length === 1 ? "brano" : "brani"}`;
-  $("#plAddSongsBtn").hidden = isLikedView;
-  $("#plRenameBtn").hidden = isLikedView;
-  $("#plConvertBtn").hidden = isLikedView;
+  $("#plAddSongsBtn").hidden = isSmartView;
+  $("#plRenameBtn").hidden = isSmartView;
+  $("#plConvertBtn").hidden = isSmartView;
   $("#plConvertBtn").textContent = isAlbum ? "Segna come Playlist" : "Segna come Album";
-  $("#plDelBtn").hidden = isLikedView;
+  $("#plDelBtn").hidden = isSmartView;
   $("#plHero").className = "pl-hero" + (isLikedView ? " liked-hero" : "");
   $("#plEmpty").hidden = items.length > 0;
   $("#plShuffleBtn").classList.toggle("active", shuffle);
 
   const hero = $("#plHeroCover");
   hero.className = "pl-cover-lg" + (isLikedView ? " liked-grad" : "");
-  hero.innerHTML = isLikedView ? coverHtml(null, true) : playlistCoverHtml(items, pl.cover);
+  hero.innerHTML = isLikedView ? coverHtml(null, true) : isTopView ? '<svg viewBox="0 0 24 24" style="color:#1db954;width:54px;height:54px"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>' : playlistCoverHtml(items, pl.cover);
 
   const ul = $("#plSongsList");
   ul.innerHTML = "";
@@ -4440,19 +4466,28 @@ $("#plRenameBtn").onclick = () => {
   }
 };
 $("#plDelBtn").onclick = () => {
+  const pl = lists.find(x => x.id === openPlId);
+  if (!pl) return;
+  if (!confirm(`Eliminare "${pl.name}"?`)) return;
   if (db) { try { lstore("readwrite").delete(openPlId); } catch (e) {} }
   lists = lists.filter(x => x.id !== openPlId);
   openPlId = null;
   renderLib();
-  toast("Playlist eliminata");
+  toast("Eliminato");
 };
 
 $("#plPlayBtn").onclick = () => {
   const isLiked = openPlId === "LIKED";
-  const items = isLiked ? songs.filter(s => s.liked) : (lists.find(x => x.id === openPlId)?.songIds.map(id => songs.find(s => s.id === id)).filter(Boolean) || []);
+  const isTop = openPlId === "TOP_PLAYED";
+  const items = isLiked
+    ? songs.filter(s => s.liked)
+    : isTop
+      ? [...songs].filter(s => (s.playCount || 0) > 0).sort((a, b) => (b.playCount || 0) - (a.playCount || 0)).slice(0, 20)
+      : (lists.find(x => x.id === openPlId)?.songIds.map(id => songs.find(s => s.id === id)).filter(Boolean) || []);
   if (!items.length) return;
   const ids = items.map(s => s.id);
-  play(shuffle ? ids[Math.floor(Math.random() * ids.length)] : ids[0], ids, false, isLiked ? "Brani che ti piacciono" : lists.find(x => x.id === openPlId).name);
+  const label = isLiked ? "Brani che ti piacciono" : isTop ? "I più ascoltati" : lists.find(x => x.id === openPlId).name;
+  play(shuffle ? ids[Math.floor(Math.random() * ids.length)] : ids[0], ids, false, label);
 };
 
 $("#plShuffleBtn").onclick = $("#shufBtn").onclick = () => {
@@ -4528,6 +4563,18 @@ $("#fpMenuBtn").onclick = () => {
   if (s) openSongMenu(s, queue, ctxName);
 };
 
+$("#lfsCopyBtn").onclick = async () => {
+  const s = songs.find(x => x.id === curId);
+  const raw = s && s.lyrics ? s.lyrics.replace(/\[\d{1,2}:\d{2}(?:[.:]\d{1,3})?\]\s*/g, "").trim() : "";
+  if (!raw) { toast("Nessun testo da copiare"); return; }
+  try {
+    await navigator.clipboard.writeText(raw);
+    toast("Testo copiato negli appunti!");
+  } catch (e) {
+    toast("Impossibile copiare il testo");
+  }
+};
+
 $("#editLyricsFpBtn").onclick = $("#lfsEditBtn").onclick = () => {
   const s = songs.find(x => x.id === curId);
   if (s) openLyricsEditor(s);
@@ -4590,7 +4637,12 @@ const togglePlay = () => { if (audio.src || curId) { audio.paused ? forcePlayAud
 $("#miniPpBtn").onclick = $("#ppBtn").onclick = $("#lfsPpBtn").onclick = togglePlay;
 $("#prevBtn").onclick = $("#lfsPrevBtn").onclick = () => step(-1);
 $("#nextBtn").onclick = $("#lfsNextBtn").onclick = () => step(1);
-$("#qClearBtn").onclick = () => { upNext = []; renderQueue(); prefetchNextTrack(); persistPlaybackState(); };
+$("#qClearBtn").onclick = () => {
+  if (!upNext.length) return;
+  if (!confirm("Svuotare la coda di riproduzione?")) return;
+  upNext = []; renderQueue(); prefetchNextTrack(); persistPlaybackState();
+  toast("Coda svuotata");
+};
 $("#sheet").onclick = e => { if (e.target.id === "sheet") $("#sheet").hidden = true; };
 
 const handleSeekInput = e => {
