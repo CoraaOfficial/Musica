@@ -1481,8 +1481,25 @@ input[type=file] { display: none; }
     <div class="settings-card">
       <div style="font-weight:800;font-size:15px;color:#FFF;margin-bottom:8px">Backup</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="pill-btn" id="expBtn">Backup totale (.ZIP)</button>
+        <button class="pill-btn primary" id="cloudExpBtn">☁️ Backup online</button>
+        <button class="pill-btn" id="cloudImpBtn">📥 Importa backup online</button>
+        <button class="pill-btn" id="cloudDelBtn">🗑️ Elimina backup online</button>
+        <button class="pill-btn" id="cloudUrlBtn">🔗 URL Server Backup</button>
+        <button class="pill-btn" id="expBtn">Backup locale (.ZIP)</button>
         <button class="pill-btn" id="impBtn">Importa backup (.ZIP)</button>
+      </div>
+    </div>
+
+    <!-- CLOUD PROGRESS SHEET -->
+    <div id="cloudProgressSheet" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.85);display:none;align-items:flex-end;justify-content:center">
+      <div style="background:#1a1a1a;border-radius:20px 20px 0 0;padding:28px 24px 40px;width:100%;max-width:480px;box-sizing:border-box">
+        <div id="cloudProgressTitle" style="font-size:17px;font-weight:800;color:#FFF;margin-bottom:6px">Backup online</div>
+        <div id="cloudProgressSub" style="font-size:13px;color:#aaa;margin-bottom:16px">Preparazione...</div>
+        <div style="background:#333;border-radius:99px;overflow:hidden;height:8px;margin-bottom:12px">
+          <div id="cloudProgressBar" style="height:100%;border-radius:99px;background:var(--accent,#1DB954);width:0%;transition:width .3s ease"></div>
+        </div>
+        <div id="cloudProgressPct" style="font-size:13px;color:#aaa;text-align:right;margin-bottom:14px">0%</div>
+        <button id="cloudProgressCancelBtn" class="pill-btn" style="width:100%">Annulla</button>
       </div>
     </div>
   </section>
@@ -1715,8 +1732,8 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 61;
-const SESSION_KEY = "hush_locale_state_v61";
+const APP_VERSION = 63;
+const SESSION_KEY = "hush_locale_state_v63";
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -5061,6 +5078,293 @@ function triggerBlobDownload(blob, fileName) {
     URL.revokeObjectURL(url);
   }, 15000);
 }
+
+async function sha256Hex(str) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+function getCloudUrl(askIfMissing = true) {
+  let u = (localStorage.getItem("hush_cloud_url") || "").trim().replace(/\/+$/, "");
+  if (!u && askIfMissing) {
+    const inp = prompt("Inserisci l'URL del tuo Cloudflare Worker (es. https://hush-backup.xxx.workers.dev):");
+    if (inp && inp.trim()) {
+      u = inp.trim().replace(/\/+$/, "");
+      localStorage.setItem("hush_cloud_url", u);
+    }
+  }
+  return u;
+}
+
+/* --- Cloud Progress Sheet helpers --- */
+let _cloudAbort = false;
+function showCloudProgress(title) {
+  _cloudAbort = false;
+  const sh = document.getElementById("cloudProgressSheet");
+  document.getElementById("cloudProgressTitle").textContent = title;
+  document.getElementById("cloudProgressSub").textContent = "Preparazione...";
+  document.getElementById("cloudProgressBar").style.width = "0%";
+  document.getElementById("cloudProgressPct").textContent = "0%";
+  sh.style.display = "flex";
+}
+function updateCloudProgress(current, total, label) {
+  const pct = total > 0 ? Math.round((current / total) * 100) : 0;
+  document.getElementById("cloudProgressBar").style.width = pct + "%";
+  document.getElementById("cloudProgressPct").textContent = pct + "%";
+  document.getElementById("cloudProgressSub").textContent = label || "";
+}
+function hideCloudProgress() {
+  document.getElementById("cloudProgressSheet").style.display = "none";
+}
+document.getElementById("cloudProgressCancelBtn").onclick = () => {
+  _cloudAbort = true;
+  hideCloudProgress();
+  toast("Operazione annullata");
+};
+
+$("#cloudUrlBtn").onclick = () => {
+  const cur = localStorage.getItem("hush_cloud_url") || "";
+  const inp = prompt("URL del Cloudflare Worker:", cur);
+  if (inp !== null) {
+    localStorage.setItem("hush_cloud_url", inp.trim().replace(/\/+$/, ""));
+    toast(inp.trim() ? "URL salvato!" : "URL rimosso");
+  }
+};
+
+$("#cloudExpBtn").onclick = async () => {
+  if (!songs.length && !lists.length) { toast("Nulla da esportare"); return; }
+  const baseUrl = getCloudUrl(true);
+  if (!baseUrl) return;
+  const pwd = prompt("Scegli una password per questo backup online (ti servirà per importarlo):");
+  if (!pwd || pwd.length < 3) { toast("Password troppo corta"); return; }
+
+  showCloudProgress("☁️ Backup online in corso...");
+  try {
+    const key = await sha256Hex(pwd);
+    const idToSig = new Map(songs.map(s => [s.id, makeTrackSignature(s)]));
+    const manifestObj = {
+      v: 8,
+      app: "Hush",
+      totalTracks: songs.length,
+      exportedAt: new Date().toISOString(),
+      settings: {
+        shuffle, repeatMode, crossfadeSec,
+        accent: localStorage.getItem("hush_accent") || "#1DB954",
+        dynBgEnabled, homeFilter, homeSort, libFilter
+      },
+      liked: songs.filter(s => s.liked).map(s => s.orig || s.name),
+      playlists: lists.map(pl => ({
+        name: pl.name, kind: pl.kind || "playlist",
+        albumArtist: pl.albumArtist || null, cover: pl.cover || null,
+        songSigs: pl.songIds.map(id => idToSig.get(id)).filter(Boolean)
+      }))
+    };
+
+    updateCloudProgress(0, songs.length + 1, "Caricamento manifest...");
+    const rMan = await fetch(`${baseUrl}/upload/${key}/manifest.json`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(manifestObj)
+    });
+    if (!rMan.ok) throw new Error("Errore server " + rMan.status);
+    if (_cloudAbort) return;
+
+    const total = songs.length;
+    for (let i = 0; i < total; i++) {
+      if (_cloudAbort) { hideCloudProgress(); toast("Backup annullato"); return; }
+      const s = songs[i];
+      updateCloudProgress(i + 1, total + 1, `Brano ${i + 1}/${total}: ${s.name}`);
+      const num = String(i + 1).padStart(4, "0");
+      const mime = s.type || "audio/mpeg";
+      const ext = extFromMime(mime, `${s.orig || s.name}.mp3`);
+      const audioName = `audio_${num}${ext}`;
+      const metaName = `meta_${num}.json`;
+
+      let blob = await getSongBlob(s.id);
+      let hasAudio = false;
+      if (blob) {
+        const rAud = await fetch(`${baseUrl}/upload/${key}/${audioName}`, {
+          method: "PUT",
+          headers: { "Content-Type": mime },
+          body: blob
+        });
+        if (!rAud.ok) throw new Error("Errore upload audio " + rAud.status);
+        blob = null;
+        hasAudio = true;
+      }
+
+      const metaPayload = {
+        sig: idToSig.get(s.id),
+        orig: s.orig || s.name,
+        name: s.name,
+        artist: s.artist || "Artista locale",
+        album: s.album || null,
+        cover: s.cover || null,
+        lyrics: s.lyrics || null,
+        liked: Boolean(s.liked),
+        playCount: s.playCount || 0,
+        size: s.size || 0,
+        type: mime,
+        audioFile: hasAudio ? audioName : null
+      };
+      const rMet = await fetch(`${baseUrl}/upload/${key}/${metaName}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(metaPayload)
+      });
+      if (!rMet.ok) throw new Error("Errore upload meta " + rMet.status);
+      await pauseTick(0); // yield UI
+    }
+    hideCloudProgress();
+    toast("✅ Backup online completato! (Valido 30 giorni)");
+  } catch (err) {
+    hideCloudProgress();
+    toast("Errore backup online: " + (err && err.message ? err.message : "connessione fallita"));
+  }
+};
+
+$("#cloudImpBtn").onclick = async () => {
+  const baseUrl = getCloudUrl(true);
+  if (!baseUrl) return;
+  const pwd = prompt("Inserisci la password del backup online:");
+  if (!pwd) return;
+
+  showCloudProgress("📥 Importazione backup online...");
+  try {
+    const key = await sha256Hex(pwd);
+    updateCloudProgress(0, 1, "Ricerca backup...");
+    const rList = await fetch(`${baseUrl}/list/${key}`);
+    if (!rList.ok) throw new Error("Errore server " + rList.status);
+    const { files } = await rList.json();
+    if (!files || !files.length) {
+      hideCloudProgress();
+      toast("Nessun backup trovato con questa password");
+      return;
+    }
+
+    const sigToSongId = new Map(songs.map(s => [makeTrackSignature(s), s.id]));
+    const metaFiles = files.filter(f => f.name.startsWith("meta_")).sort((a, b) => a.name.localeCompare(b.name));
+    const total = metaFiles.length;
+    let added = 0;
+
+    for (let i = 0; i < total; i++) {
+      if (_cloudAbort) { hideCloudProgress(); toast("Importazione annullata"); return; }
+      updateCloudProgress(i + 1, total + 1, `Brano ${i + 1}/${total}...`);
+      const rM = await fetch(`${baseUrl}/download/${key}/${metaFiles[i].name}`);
+      if (!rM.ok) continue;
+      const meta = await rM.json();
+      const sig = meta.sig || `${meta.orig || meta.name}__${meta.size || 0}`;
+      let target = songs.find(s => makeTrackSignature(s) === sig) || songs.find(s => (s.orig || s.name) === (meta.orig || meta.name));
+
+      if (target) {
+        if (meta.name) target.name = meta.name;
+        if (meta.artist) target.artist = meta.artist;
+        if (meta.album !== undefined) target.album = meta.album;
+        if (meta.cover) target.cover = meta.cover;
+        if (meta.lyrics !== undefined) target.lyrics = meta.lyrics;
+        if (typeof meta.liked === "boolean") target.liked = meta.liked;
+        if (typeof meta.playCount === "number") target.playCount = Math.max(target.playCount || 0, meta.playCount);
+        await saveSongMetaAsync(target);
+        sigToSongId.set(sig, target.id);
+      } else if (meta.audioFile) {
+        const rA = await fetch(`${baseUrl}/download/${key}/${meta.audioFile}`);
+        if (!rA.ok) continue;
+        const buf = await rA.arrayBuffer();
+        const rec = {
+          orig: meta.orig || meta.name,
+          name: meta.name || "Brano",
+          artist: meta.artist || "Artista locale",
+          album: meta.album || null,
+          cover: meta.cover || null,
+          lyrics: meta.lyrics || null,
+          liked: Boolean(meta.liked),
+          playCount: meta.playCount || 0,
+          size: buf.byteLength,
+          type: meta.type || "audio/mpeg",
+          addedAt: Date.now()
+        };
+        if (await writeSongToDb(rec, buf)) {
+          songs.push(rec);
+          sigToSongId.set(sig, rec.id);
+          added++;
+        }
+      }
+      await pauseTick(0);
+    }
+
+    if (files.some(f => f.name === "manifest.json")) {
+      updateCloudProgress(total + 1, total + 1, "Ripristino impostazioni...");
+      const rMan = await fetch(`${baseUrl}/download/${key}/manifest.json`);
+      if (rMan.ok) {
+        const manifest = await rMan.json();
+        if (manifest.settings) {
+          if (typeof manifest.settings.shuffle === "boolean") shuffle = manifest.settings.shuffle;
+          if (typeof manifest.settings.repeatMode === "number") repeatMode = manifest.settings.repeatMode;
+          if (typeof manifest.settings.crossfadeSec === "number") {
+            crossfadeSec = manifest.settings.crossfadeSec;
+            localStorage.setItem("hush_crossfade_sec", String(crossfadeSec));
+            updateCrossfadeBtn();
+          }
+          if (manifest.settings.accent) {
+            localStorage.setItem("hush_accent", manifest.settings.accent);
+            applyAccentColor(manifest.settings.accent);
+          }
+          if (typeof manifest.settings.dynBgEnabled === "boolean") {
+            dynBgEnabled = manifest.settings.dynBgEnabled;
+            localStorage.setItem("hush_dyn_bg", dynBgEnabled ? "1" : "0");
+            updateDynBgBtn();
+          }
+          if (manifest.settings.homeFilter) homeFilter = manifest.settings.homeFilter;
+          if (manifest.settings.homeSort) homeSort = manifest.settings.homeSort;
+          if (manifest.settings.libFilter) libFilter = manifest.settings.libFilter;
+        }
+        if (Array.isArray(manifest.playlists)) {
+          for (const p of manifest.playlists) {
+            const resolved = (p.songSigs || []).map(ref => sigToSongId.get(ref)).filter(Boolean);
+            let ex = lists.find(x => x.name === p.name);
+            if (ex) {
+              ex.songIds = [...new Set([...ex.songIds, ...resolved])];
+              if (p.kind) ex.kind = p.kind;
+              if (p.albumArtist) ex.albumArtist = p.albumArtist;
+              if (p.cover) ex.cover = p.cover;
+              saveList(ex);
+            } else {
+              const np = { name: p.name, kind: p.kind || "playlist", albumArtist: p.albumArtist || null, cover: p.cover || null, songIds: resolved };
+              if (db) { try { np.id = await rq(lstore("readwrite").add(np)); } catch (e) { np.id = tempId--; np.mem = true; } }
+              else { np.id = tempId--; np.mem = true; }
+              lists.push(np);
+            }
+          }
+        }
+      }
+    }
+
+    hideCloudProgress();
+    renderAll();
+    persistPlaybackState();
+    toast(`✅ Backup importato! (${added} nuovi brani)`);
+  } catch (err) {
+    hideCloudProgress();
+    toast("Errore importazione online: " + (err && err.message ? err.message : "connessione fallita"));
+  }
+};
+
+$("#cloudDelBtn").onclick = async () => {
+  const baseUrl = getCloudUrl(true);
+  if (!baseUrl) return;
+  const pwd = prompt("Inserisci la password del backup da eliminare:");
+  if (!pwd) return;
+  if (!confirm("Sei sicuro di voler eliminare questo backup online? L'operazione è irreversibile.")) return;
+  try {
+    const key = await sha256Hex(pwd);
+    toast("Eliminazione backup...");
+    const r = await fetch(`${baseUrl}/delete/${key}`, { method: "DELETE" });
+    if (!r.ok) throw new Error("Errore server " + r.status);
+    toast("🗑️ Backup online eliminato!");
+  } catch (err) {
+    toast("Errore eliminazione: " + (err && err.message ? err.message : "connessione fallita"));
+  }
+};
 
 $("#expBtn").onclick = async () => {
   if (!songs.length && !lists.length) {
