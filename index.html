@@ -1732,8 +1732,8 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 64;
-const SESSION_KEY = "hush_locale_state_v64";
+const APP_VERSION = 65;
+const SESSION_KEY = "hush_locale_state_v65";
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -5108,6 +5108,7 @@ async function sbUpload(cfg, hash, name, body, contentType) {
   const r = await fetch(`${cfg.url}/storage/v1/object/${SB_BUCKET}/${hash}/${name}`, {
     method: "POST",
     headers: {
+      "apikey": cfg.key,
       "Authorization": `Bearer ${cfg.key}`,
       "Content-Type": contentType || "application/octet-stream",
       "x-upsert": "true"
@@ -5123,7 +5124,7 @@ async function sbUpload(cfg, hash, name, body, contentType) {
 async function sbList(cfg, hash) {
   const r = await fetch(`${cfg.url}/storage/v1/object/list/${SB_BUCKET}`, {
     method: "POST",
-    headers: { "Authorization": `Bearer ${cfg.key}`, "Content-Type": "application/json" },
+    headers: { "apikey": cfg.key, "Authorization": `Bearer ${cfg.key}`, "Content-Type": "application/json" },
     body: JSON.stringify({ prefix: `${hash}/`, limit: 10000, sortBy: { column: "name", order: "asc" } })
   });
   if (!r.ok) throw new Error("Errore lista " + r.status);
@@ -5132,7 +5133,7 @@ async function sbList(cfg, hash) {
 
 async function sbDownload(cfg, hash, name) {
   const r = await fetch(`${cfg.url}/storage/v1/object/${SB_BUCKET}/${hash}/${name}`, {
-    headers: { "Authorization": `Bearer ${cfg.key}` }
+    headers: { "apikey": cfg.key, "Authorization": `Bearer ${cfg.key}` }
   });
   if (!r.ok) throw new Error("Download fallito " + r.status);
   return r;
@@ -5142,7 +5143,7 @@ async function sbDeleteAll(cfg, hash, files) {
   const prefixes = files.map(f => `${hash}/${f.name || f}`);
   const r = await fetch(`${cfg.url}/storage/v1/object/${SB_BUCKET}`, {
     method: "DELETE",
-    headers: { "Authorization": `Bearer ${cfg.key}`, "Content-Type": "application/json" },
+    headers: { "apikey": cfg.key, "Authorization": `Bearer ${cfg.key}`, "Content-Type": "application/json" },
     body: JSON.stringify({ prefixes })
   });
   if (!r.ok) throw new Error("Eliminazione fallita " + r.status);
