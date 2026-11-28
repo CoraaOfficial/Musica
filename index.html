@@ -1715,8 +1715,8 @@ input[type=file] { display: none; }
 <script>
 const $ = s => document.querySelector(s);
 const audio = $("#a");
-const APP_VERSION = 60;
-const SESSION_KEY = "hush_locale_state_v60";
+const APP_VERSION = 61;
+const SESSION_KEY = "hush_locale_state_v61";
 
 const SVG_NOTE = '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 const SVG_HEART_OUT = '<svg viewBox="0 0 24 24"><path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3zm-4.4 15.55-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05z"/></svg>';
@@ -5068,53 +5068,50 @@ $("#expBtn").onclick = async () => {
     return;
   }
   try {
+    const MAX_PART_BYTES = 450 * 1024 * 1024;
+    const enc = new TextEncoder();
+    const idToSig = new Map();
+    for (const s of songs) {
+      idToSig.set(s.id, makeTrackSignature(s));
+    }
 
-  const CHUNK_SIZE = 100;
-  const totalChunks = Math.max(1, Math.ceil(songs.length / CHUNK_SIZE));
-  const enc = new TextEncoder();
-  const idToSig = new Map();
-  for (const s of songs) {
-    idToSig.set(s.id, makeTrackSignature(s));
-  }
+    const partFiles = [];
+    let partIdx = 1;
+    let curPartBytes = 0;
+    let zipWriter = await createStreamingZipWriter();
 
-  const zipWriter = await createStreamingZipWriter();
+    const manifestObj = {
+      v: 8,
+      app: "Hush",
+      totalTracks: songs.length,
+      exportedAt: new Date().toISOString(),
+      settings: {
+        shuffle,
+        repeatMode,
+        crossfadeSec,
+        accent: localStorage.getItem("hush_accent") || "#1DB954",
+        dynBgEnabled,
+        homeFilter,
+        homeSort,
+        libFilter
+      },
+      liked: songs.filter(s => s.liked).map(s => s.orig || s.name),
+      playlists: lists.map(pl => ({
+        name: pl.name,
+        kind: pl.kind || "playlist",
+        albumArtist: pl.albumArtist || null,
+        cover: pl.cover || null,
+        songSigs: pl.songIds.map(id => idToSig.get(id)).filter(Boolean)
+      }))
+    };
+    let manifestBytes = enc.encode(JSON.stringify(manifestObj, null, 2));
+    curPartBytes += manifestBytes.length;
+    await zipWriter.addEntry("manifest.json", manifestBytes);
+    manifestBytes = null;
 
-  const manifestObj = {
-    v: 8,
-    app: "Hush",
-    totalTracks: songs.length,
-    chunkSize: CHUNK_SIZE,
-    exportedAt: new Date().toISOString(),
-    settings: {
-      shuffle,
-      repeatMode,
-      crossfadeSec,
-      accent: localStorage.getItem("hush_accent") || "#1DB954",
-      dynBgEnabled,
-      homeFilter,
-      homeSort,
-      libFilter
-    },
-    liked: songs.filter(s => s.liked).map(s => s.orig || s.name),
-    playlists: lists.map(pl => ({
-      name: pl.name,
-      kind: pl.kind || "playlist",
-      albumArtist: pl.albumArtist || null,
-      cover: pl.cover || null,
-      songSigs: pl.songIds.map(id => idToSig.get(id)).filter(Boolean)
-    }))
-  };
-  let manifestBytes = enc.encode(JSON.stringify(manifestObj, null, 2));
-  await zipWriter.addEntry("manifest.json", manifestBytes);
-  manifestBytes = null;
-
-  for (let chunkIdx = 0; chunkIdx < totalChunks; chunkIdx++) {
-    const start = chunkIdx * CHUNK_SIZE;
-    const end = Math.min(start + CHUNK_SIZE, songs.length);
-
-    for (let i = start; i < end; i++) {
+    for (let i = 0; i < songs.length; i++) {
       const s = songs[i];
-      toast(`Blocco ${chunkIdx + 1}/${totalChunks} • Brano ${i + 1}/${songs.length}...`);
+      toast(`Parte ${partIdx} • Brano ${i + 1}/${songs.length}...`);
 
       const fileNum = String(i + 1).padStart(4, "0");
       const mime = s.type || "audio/mpeg";
@@ -5127,8 +5124,18 @@ $("#expBtn").onclick = async () => {
       let reportedSize = s.size || 0;
       if (blob) {
         reportedSize = s.size || blob.size;
+        if (curPartBytes > 0 && curPartBytes + reportedSize > MAX_PART_BYTES) {
+          toast(`Chiusura Parte ${partIdx}...`);
+          const partBlob = await zipWriter.finishBlob();
+          partFiles.push(new File([partBlob], `hush-backup-parte-${partIdx}.zip`, { type: "application/zip" }));
+          await zipWriter.cleanup();
+          partIdx++;
+          curPartBytes = 0;
+          zipWriter = await createStreamingZipWriter();
+        }
         let buf = await blob.arrayBuffer();
         blob = null;
+        curPartBytes += buf.byteLength;
         await zipWriter.addEntry(audioPath, buf);
         buf = null;
         hasAudio = true;
@@ -5150,63 +5157,61 @@ $("#expBtn").onclick = async () => {
       };
 
       let metaBytes = enc.encode(JSON.stringify(metaPayload));
+      curPartBytes += metaBytes.length;
       await zipWriter.addEntry(metaPath, metaBytes);
       metaBytes = null;
 
-      if ((i - start) % 5 === 4) {
-        await pauseTick(60);
+      if (i % 5 === 4) {
+        await pauseTick(50);
       }
     }
 
-    if (chunkIdx + 1 < totalChunks) {
-      toast(`Blocco ${chunkIdx + 1}/${totalChunks} completato, pulizia RAM...`);
-      await pauseTick(150);
-    }
-  }
+    toast(`Chiusura Parte ${partIdx}...`);
+    await pauseTick(80);
+    const lastBlob = await zipWriter.finishBlob();
+    const singleName = partFiles.length === 0 ? "hush-backup-totale.zip" : `hush-backup-parte-${partIdx}.zip`;
+    partFiles.push(new File([lastBlob], singleName, { type: "application/zip" }));
+    await zipWriter.cleanup();
 
-  toast("Chiusura archivio ZIP unico...");
-  await pauseTick(80);
-  let zipBlob = await zipWriter.finishBlob();
-  const sizeMB = (zipBlob.size / 1048576).toFixed(1);
-  const zipFile = new File([zipBlob], "hush-backup-totale.zip", { type: "application/zip" });
-  const dlUrl = URL.createObjectURL(zipBlob);
-  zipBlob = null;
-
-  const box = $("#sheetBox");
-  box.innerHTML = `
-    <div class="sheet-handle"></div>
-    <div style="padding:10px 6px 14px;text-align:center">
-      <div style="font-size:18px;font-weight:800;margin-bottom:4px">Backup pronto!</div>
-      <div style="font-size:13px;color:var(--muted);margin-bottom:16px">Archivio unico: ${sizeMB} MB</div>
-      <button class="pill-btn primary" id="shareDlBtn" style="width:100%;justify-content:center;padding:13px;font-size:15px;margin-bottom:10px">Salva / Scarica Backup (.ZIP)</button>
-      <button class="pill-btn" id="closeDlSheetBtn" style="width:100%;justify-content:center">Chiudi</button>
-    </div>
-  `;
-  $("#shareDlBtn").onclick = async () => {
-    toast("Preparazione salvataggio...");
-    if (navigator.share) {
-      try {
-        await navigator.share({ files: [zipFile], title: "Backup Hush" });
-        return;
-      } catch (e) {
-        if (e && e.name === "AbortError") return;
-      }
-    }
-    const w = window.open(dlUrl, "_blank");
-    if (!w) {
-      const a = document.createElement("a");
-      a.href = dlUrl;
-      a.download = "hush-backup-totale.zip";
-      a.click();
-    }
-  };
-  $("#closeDlSheetBtn").onclick = () => {
-    $("#sheet").hidden = true;
-    URL.revokeObjectURL(dlUrl);
-    zipWriter.cleanup();
-  };
-  $("#sheet").hidden = false;
-  toast("Backup pronto: premi Salva!");
+    const box = $("#sheetBox");
+    box.innerHTML = `
+      <div class="sheet-handle"></div>
+      <div style="padding:10px 6px 14px">
+        <div style="font-size:18px;font-weight:800;margin-bottom:4px;text-align:center">Backup pronto!</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:14px;text-align:center">${partFiles.length} ${partFiles.length === 1 ? "file" : "parti"} da salvare (importabili insieme)</div>
+        <div id="partBtnsList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
+        <button class="pill-btn" id="closeDlSheetBtn" style="width:100%;justify-content:center">Chiudi</button>
+      </div>
+    `;
+    const listEl = $("#partBtnsList");
+    partFiles.forEach((pf, idx) => {
+      const mb = (pf.size / 1048576).toFixed(1);
+      const b = document.createElement("button");
+      b.className = "pill-btn primary";
+      b.style.cssText = "width:100%;justify-content:center;padding:12px;font-size:14px";
+      b.textContent = `Salva Parte ${idx + 1}/${partFiles.length} (${mb} MB)`;
+      b.onclick = async () => {
+        if (navigator.share) {
+          try {
+            await navigator.share({ files: [pf], title: pf.name });
+            b.textContent = `✓ Parte ${idx + 1} salvata`;
+            return;
+          } catch (e) {
+            if (e && e.name === "AbortError") return;
+          }
+        }
+        const u = URL.createObjectURL(pf);
+        const a = document.createElement("a");
+        a.href = u;
+        a.download = pf.name;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(u), 10000);
+      };
+      listEl.append(b);
+    });
+    $("#closeDlSheetBtn").onclick = () => { $("#sheet").hidden = true; };
+    $("#sheet").hidden = false;
+    toast("Backup pronto!");
   } catch (err) {
     toast("Errore backup: " + (err && err.message ? err.message : "memoria insufficiente"));
   }
